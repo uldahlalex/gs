@@ -1,5 +1,6 @@
-// Configuration Constants
 const CONFIG = {
+  teachersColumn: 'A',
+  notAllowedDates: 'B',
   attendeesColumn: 'E',
   startDateColumn: 'F',
   endDateColumn: 'G',
@@ -10,12 +11,14 @@ const CONFIG = {
   endRow: 100,
   conflictColor: "#800080", // Purple
   dataCheckColumns: ['H', 'I'], // Columns that trigger calculateDuration
+  nonEditableColumns: ['J']
 };
 
 function checkAttendeeTypos() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const teachersColumn = sheet.getRange('A2:A' + sheet.getLastRow()).getValues();
-  const teachers = teachersColumn.map(row => row[0].trim());
+  const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
+  const teachersValues = teachersRange.getValues();
+  const teachers = teachersValues.map(row => row[0].trim());
   const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
   const attendeesValues = attendeesRange.getValues();
 
@@ -64,18 +67,59 @@ function checkAttendeeConflicts() {
   }
 }
 
+function checkDateConflictsAndColorCells() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + CONFIG.startRow + ":" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
+  var notAllowedDates = notAllowedDatesRange.getValues().flat();
+  var startDateRange = sheet.getRange(CONFIG.startDateColumn + (CONFIG.startRow + 1) + ":" + CONFIG.startDateColumn);
+  var startDateValues = startDateRange.getValues().flat();
+  var endDateRange = sheet.getRange(CONFIG.endDateColumn + (CONFIG.startRow + 1) + ":" + CONFIG.endDateColumn);
+  var endDateValues = endDateRange.getValues().flat();
+
+  // Clear any previous formatting
+  notAllowedDatesRange.setBackground(null);
+  startDateRange.setBackground(null);
+  endDateRange.setBackground(null);
+
+  // Loop through all start and end dates
+  for (var i = 0; i < startDateValues.length; i++) {
+    var startDate = startDateValues[i];
+    var endDate = endDateValues[i];
+    if (startDate && endDate) { // Check if both start and end dates are present
+      startDate = new Date(startDate);
+      endDate = new Date(endDate);
+      // Check against each not allowed date
+      for (var j = 0; j < notAllowedDates.length; j++) {
+        var notAllowedDate = new Date(notAllowedDates[j]);
+        if (notAllowedDate >= startDate && notAllowedDate <= endDate) {
+          // If conflict, color the cells
+          notAllowedDatesRange.getCell(j + 1, 1).setBackground(CONFIG.conflictColor);
+          startDateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor);
+          endDateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor);
+        }
+      }
+    }
+  }
+}
 function onEdit(e) {
-  if ([CONFIG.attendeesColumn, CONFIG.startDateColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
+  if ([CONFIG.attendeesColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
     checkAttendeeTypos();
     checkAttendeeConflicts();
+    checkDateConflictsAndColorCells();
   }
 
   if (CONFIG.dataCheckColumns.includes(e.range.getA1Notation().charAt(0))) {
-    calculateDuration();
+    calculateDuration(e);
+  }
+
+  if (CONFIG.nonEditableColumns.includes(e.range.getA1Notation().charAt(0))) {
+    e.range.setValue(e.oldValue);
+    SpreadsheetApp.getActiveSpreadsheet().toast('Det er ikke mening "total tid" manuelt skal sættes');
+    return;
   }
 }
 
-function calculateDuration() {
+function calculateDuration(e) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const numRows = CONFIG.endRow - CONFIG.startRow + 1;
   const unitsRange = sheet.getRange(CONFIG.unitsColumn + CONFIG.startRow + ':' + CONFIG.unitsColumn + CONFIG.endRow);
@@ -91,6 +135,12 @@ function calculateDuration() {
       const totalTidCell = sheet.getRange(CONFIG.totalTidColumn + (i + CONFIG.startRow));
       totalTidCell.setValue(totalTimeInDays);
       totalTidCell.setNumberFormat('[h]:mm');
+
+      // Check if the total time exceeds 50 hours
+      const totalTimeInHours = totalTimeInDays * 24;
+      if (totalTimeInHours > 50) {
+        SpreadsheetApp.getActiveSpreadsheet().toast("Advarsel om mulig fejl-indtastning: Beregnet tid er over 50 timer, tjek venligst minutter per eksamen og holdstørrelse");
+      }
     }
   }
 }
