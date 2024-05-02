@@ -1,70 +1,76 @@
-
-
 // Configuration Constants
 const CONFIG = {
-  attendeesColumnIndex: 5, // Attendees
-  startDateColumnIndex: 6, // Start Date and Time
-  endDateColumnIndex: 7, // End Date and Time
+  attendeesColumn: 'E',
+  startDateColumn: 'F',
+  endDateColumn: 'G',
   unitsColumn: 'H',
   minutesPerUnitColumn: 'I',
   totalTidColumn: 'J',
   startRow: 2,
   endRow: 100,
   conflictColor: "#800080", // Purple
-  dataCheckColumns: [8, 9], // Columns that trigger calculateDuration
+  dataCheckColumns: ['H', 'I'], // Columns that trigger calculateDuration
 };
+
+function checkAttendeeTypos() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const teachersColumn = sheet.getRange('A2:A' + sheet.getLastRow()).getValues();
+  const teachers = teachersColumn.map(row => row[0].trim());
+  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
+  const attendeesValues = attendeesRange.getValues();
+
+  attendeesRange.setBackground(null);
+
+  attendeesValues.forEach((row, i) => {
+    const attendees = row[0].trim().split(/,\s*/);
+    const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
+    if (!allAttendeesValid) {
+      sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground('red');
+    }
+  });
+}
 
 function checkAttendeeConflicts() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const range = sheet.getDataRange();
+  const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
-  const teachersColumn = sheet.getRange(2, 1, sheet.getLastRow() - 1).getValues();
-  const teachers = teachersColumn.map(row => row[0].trim());
-
-  range.setBackground(null);
   const attendeesToCheck = {};
 
-  for (let i = 1; i < values.length; i++) {
+  for (let i = 0; i < values.length; i++) {
     const row = values[i];
-    const startDate = new Date(row[CONFIG.startDateColumnIndex - 1]);
-    const endDate = new Date(row[CONFIG.endDateColumnIndex - 1]);
-    const attendees = row[CONFIG.attendeesColumnIndex - 1].split(',');
-
-    const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
-    if (!allAttendeesValid) {
-      sheet.getRange(i + 1, CONFIG.attendeesColumnIndex).setBackground('red');
-    }
+    const startDate = new Date(row[sheet.getRange(CONFIG.startDateColumn + '1').getColumn() - 1]);
+    const endDate = new Date(row[sheet.getRange(CONFIG.endDateColumn + '1').getColumn() - 1]);
+    const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
 
     attendees.forEach(attendee => {
       attendee = attendee.trim();
       if (!attendeesToCheck[attendee]) {
-        attendeesToCheck[attendee] = [{ start: startDate, end: endDate, row: i + 1 }];
+        attendeesToCheck[attendee] = [{ start: startDate, end: endDate, row: i + CONFIG.startRow }];
       } else {
         const conflicts = attendeesToCheck[attendee].some(event => {
           const hasConflict = (startDate <= event.end && endDate >= event.start);
           if (hasConflict) {
-            sheet.getRange(event.row, CONFIG.attendeesColumnIndex).setBackground('orange');
+            sheet.getRange(event.row, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground('orange');
           }
           return hasConflict;
         });
 
         if (conflicts) {
-          sheet.getRange(i + 1, CONFIG.attendeesColumnIndex).setBackground('orange');
+          sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground('orange');
         }
-        attendeesToCheck[attendee].push({ start: startDate, end: endDate, row: i + 1 });
+        attendeesToCheck[attendee].push({ start: startDate, end: endDate, row: i + CONFIG.startRow });
       }
     });
   }
 }
 
 function onEdit(e) {
-
-
-  if ([CONFIG.attendeesColumnIndex, CONFIG.startDateColumnIndex, CONFIG.endDateColumnIndex].includes(e.range.columnStart)) {
+  if ([CONFIG.attendeesColumn, CONFIG.startDateColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
+    checkAttendeeTypos();
     checkAttendeeConflicts();
   }
 
-  if (CONFIG.dataCheckColumns.includes(e.range.columnStart)) {
+  if (CONFIG.dataCheckColumns.includes(e.range.getA1Notation().charAt(0))) {
     calculateDuration();
   }
 }
