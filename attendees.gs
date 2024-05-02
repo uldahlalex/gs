@@ -113,8 +113,7 @@ function onEdit(e) {
   }
 
   if (CONFIG.nonEditableColumns.includes(e.range.getA1Notation().charAt(0))) {
-    e.range.setValue(e.oldValue);
-    SpreadsheetApp.getActiveSpreadsheet().toast('Det er ikke mening "total tid" manuelt skal sættes');
+    SpreadsheetApp.getActiveSpreadsheet().toast('Bemærk: Det er ikke mening "total tid" manuelt skal sættes, da det automatisk sker når de forrige to kolonners værdier ændres');
     return;
   }
 }
