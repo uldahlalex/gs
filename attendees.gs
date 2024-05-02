@@ -14,6 +14,7 @@ const CONFIG = {
   nonEditableColumns: ['J']
 };
 
+
 function checkAttendeeTypos() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
@@ -116,6 +117,15 @@ function onEdit(e) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Bemærk: Det er ikke mening "total tid" manuelt skal sættes, da det automatisk sker når de forrige to kolonners værdier ændres');
     return;
   }
+
+
+  if(e.range.getA1Notation() === "B30" && e.range.getValue() === "Go") {
+         generateData();
+  }
+}
+
+function generateData() {
+     SpreadsheetApp.getActiveSpreadsheet().toast('Forsøger at sætte datoer på ud fra kriterier...');
 }
 
 function calculateDuration(e) {
