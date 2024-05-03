@@ -165,8 +165,8 @@ function generateDates() {
     const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
     const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
 
-    if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && attendees.length > 0) {
-      Browser.msgBox(attendees, Browser.Buttons.OK_CANCEL);
+    if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && JSON.stringify(attendees).trim().length > 4) {
+      //Browser.msgBox(attendees+"and length"+JSON.stringify(attendees).trim(), Browser.Buttons.OK_CANCEL);
       const totalDays = Math.ceil(totalTime / 6); // Convert hours to days, assuming 6 hours per day
       let startDate = new Date(earliestDate);
       let endDate = new Date(startDate);
