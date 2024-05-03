@@ -139,6 +139,8 @@ function generateDates() {
   const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
   const notAllowedDates = notAllowedDatesRange.getValues().flat().map(date => new Date(date).setHours(0, 0, 0, 0));
 
+  
+
   // Populate the attendeesSchedule with existing events
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -164,6 +166,7 @@ function generateDates() {
       });
     }
   }
+
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -204,6 +207,19 @@ function generateDates() {
 
 
   if (!hasConflict) {
+        const attendeeSchedules = {};
+
+    for (const attendee of attendees) {
+      if (attendeesSchedule[attendee]) {
+        attendeeSchedules[attendee] = attendeesSchedule[attendee].map(event => ({
+          start: event.start.toISOString(),
+          end: event.end.toISOString()
+        }));
+      }
+    }
+
+    const scheduleJSON = JSON.stringify(attendeeSchedules, null, 2);
+    Browser.msgBox(scheduleJSON, Browser.Buttons.OK);
     // Check for conflicts across all attendees' schedules
     for (const attendee of attendees) {
       if (attendeesSchedule[attendee]) {
