@@ -1,7 +1,6 @@
 const CONFIG = {
   teachersColumn: 'A',
   notAllowedDates: 'B',
-  deltagendeHold: 'C',
   attendeesColumn: 'E',
   startDateColumn: 'F',
   endDateColumn: 'G',
@@ -13,7 +12,6 @@ const CONFIG = {
   conflictColor: "#800080", // Purple
   dataCheckColumns: ['H', 'I'], // Columns that trigger calculateDuration
   nonEditableColumns: ['J'],
-  tilladteHoldColumn: 'K',
 
   earliestDateCell: 'B33',
   // latestDateCell: 'B34',
@@ -134,10 +132,7 @@ function generateDates() {
   const values = range.getValues();
   const earliestDate = sheet.getRange("B33").getValue();
   const interval = sheet.getRange("B36").getValue(); // Get the interval value from cell B36
-  const holdInterval = sheet.getRange("B36").getValue(); // Get the interval value from cell B36
-
   const attendeesSchedule = {};
-  const holdSchedule = {}
 
   // Get the not allowed dates from the specified range
   const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
@@ -147,7 +142,6 @@ function generateDates() {
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
     const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
-    const alleHold = row[sheet.getRange(CONFIG.tilladteHoldColumn + '1').getColumn() - 1].trim().split(/,\s*/);
     const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
     const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
     const startDate = startDateCell.getValue();
@@ -160,12 +154,6 @@ function generateDates() {
         }
         attendeesSchedule[attendee].push({ start: startDate, end: endDate });
       });
-      alleHold.forEach(hold => {
-        if (!holdSchedule[hold]) {
-          holdSchedule[hold] = [];
-        }
-        holdSchedule[hold].push({ start: startDate, end: endDate });
-      });
     }
   }
 
@@ -176,7 +164,6 @@ function generateDates() {
     if(totalTime <=6) totalTime = 6;
     const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
     const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
-    const deltagendeHold = row[sheet.getRange(CONFIG.deltagendeHold + '1').getColumn() - 1].trim().split(/,\s*/);
 
     if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && JSON.stringify(attendees).trim().length > 4) {
       //Browser.msgBox(attendees+"and length"+JSON.stringify(attendees).trim(), Browser.Buttons.OK_CANCEL);
@@ -191,7 +178,6 @@ function generateDates() {
 
       while (hasConflict && attempts < maxAttempts) {
         hasConflict = false;
-
 
         // Check if the proposed start date or any date within the event duration is a not allowed date
         for (let j = 0; j < totalDays; j++) {
@@ -209,19 +195,6 @@ function generateDates() {
             if (attendeesSchedule[attendee]) {
               for (const event of attendeesSchedule[attendee]) {
                 if (startDate <= event.end.getTime() + interval * 24 * 60 * 60 * 1000 && endDate >= event.start) {
-                  hasConflict = true;
-                  break;
-                }
-              }
-              if (hasConflict) {
-                break;
-              }
-            }
-          }
-          for (const hold of deltagendeHold) {
-            if (holdSchedule[hold]) {
-              for (const event of holdSchedule[hold]) {
-                if (startDate <= event.end.getTime() + holdInterval * 24 * 60 * 60 * 1000 && endDate >= event.start) {
                   hasConflict = true;
                   break;
                 }
@@ -253,12 +226,6 @@ function generateDates() {
             attendeesSchedule[attendee] = [];
           }
           attendeesSchedule[attendee].push({ start: startDate, end: endDate });
-        });
-        deltagendeHold.forEach(hold => {
-          if (!holdSchedule[hold]) {
-            holdSchedule[hold] = [];
-          }
-          holdSchedule[hold].push({ start: startDate, end: endDate });
         });
       }
     }
