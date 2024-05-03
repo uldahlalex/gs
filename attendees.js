@@ -14,7 +14,7 @@ const CONFIG = {
   nonEditableColumns: ['J'],
 
   earliestDateCell: 'B33',
-  // latestDateCell: 'B34',
+   maksTid: 'B31',
 };
 
 
@@ -130,8 +130,9 @@ function generateDates() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
-  const earliestDate = sheet.getRange("B33").getValue();
-  const interval = sheet.getRange("B36").getValue(); // Get the interval value from cell B36
+  const earliestDate = sheet.getRange(CONFIG.earliestDateCell).getValue();
+  const maksTid = sheet.getRange(CONFIG.maksTid).getValue();
+  const interval = 1;
   const attendeesSchedule = {};
 
   // Get the not allowed dates from the specified range
@@ -148,11 +149,18 @@ function generateDates() {
     const endDate = endDateCell.getValue();
 
     if (startDate && endDate) {
+      const startDateTime = new Date(startDate);
+      const endDateTime = new Date(endDate);
+      
+      // Set the start time to 00:00:00 and end time to 23:59:59 for all events
+      startDateTime.setHours(0, 0, 0, 0);
+      endDateTime.setHours(23, 59, 59, 999);
+      
       attendees.forEach(attendee => {
         if (!attendeesSchedule[attendee]) {
           attendeesSchedule[attendee] = [];
         }
-        attendeesSchedule[attendee].push({ start: startDate, end: endDate });
+        attendeesSchedule[attendee].push({ start: startDateTime, end: endDateTime });
       });
     }
   }
@@ -161,16 +169,19 @@ function generateDates() {
     const row = values[i];
     const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
     let totalTime = row[sheet.getRange(CONFIG.totalTidColumn + '1').getColumn() - 1];
-    if(totalTime <=6) totalTime = 6;
+    if (totalTime <= maksTid) totalTime = maksTid;
     const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
     const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
 
     if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && JSON.stringify(attendees).trim().length > 4) {
-      //Browser.msgBox(attendees+"and length"+JSON.stringify(attendees).trim(), Browser.Buttons.OK_CANCEL);
-      const totalDays = Math.ceil(totalTime / 6); // Convert hours to days, assuming 6 hours per day
+      const totalDays = Math.ceil(totalTime / maksTid);
       let startDate = new Date(earliestDate);
       let endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + totalDays - 1);
+      
+      // Set the start time to 00:00:00 and end time to 23:59:59 for all events
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
 
       let hasConflict = true;
       let attempts = 0;
@@ -189,45 +200,58 @@ function generateDates() {
           }
         }
 
-        if (!hasConflict) {
-          // Check for conflicts across all attendees' schedules
-          for (const attendee of attendees) {
-            if (attendeesSchedule[attendee]) {
-              for (const event of attendeesSchedule[attendee]) {
-                if (startDate <= event.end.getTime() + interval * 24 * 60 * 60 * 1000 && endDate >= event.start) {
-                  hasConflict = true;
-                  break;
-                }
-              }
-              if (hasConflict) {
-                break;
-              }
-            }
+         const bufferDays = 2; // Specify the number of buffer days between events
+
+
+  if (!hasConflict) {
+    // Check for conflicts across all attendees' schedules
+    for (const attendee of attendees) {
+      if (attendeesSchedule[attendee]) {
+        for (const event of attendeesSchedule[attendee]) {
+          const bufferStartDate = new Date(event.end);
+          bufferStartDate.setDate(bufferStartDate.getDate() + bufferDays);
+
+          const bufferEndDate = new Date(event.start);
+          bufferEndDate.setDate(bufferEndDate.getDate() - bufferDays);
+
+          if (startDate <= bufferStartDate && endDate >= bufferEndDate) {
+            hasConflict = true;
+            break;
           }
         }
+        if (hasConflict) {
+          break;
+        }
+      }
+    }
+  }
 
         if (hasConflict) {
           startDate.setDate(startDate.getDate() + 1);
           endDate.setDate(startDate.getDate() + totalDays - 1);
+          
+          // Set the start time to 00:00:00 and end time to 23:59:59 for all events
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(23, 59, 59, 999);
+          
           attempts++;
         }
       }
+  if (!hasConflict) {
+    // Format the start and end dates as "dd/mm/yyyy HH:mm:ss"
+    const formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+    const formattedEndDate = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
 
-      if (!hasConflict) {
-        // Format the start and end dates as "dd/mm/yyyy"
-        const formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
-        const formattedEndDate = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
+    startDateCell.setValue(formattedStartDate);
+    endDateCell.setValue(formattedEndDate);
 
-        startDateCell.setValue(formattedStartDate);
-        endDateCell.setValue(formattedEndDate);
-
-        attendees.forEach(attendee => {
-          if (!attendeesSchedule[attendee]) {
-            attendeesSchedule[attendee] = [];
-          }
-          attendeesSchedule[attendee].push({ start: startDate, end: endDate });
-        });
+    attendees.forEach(attendee => {
+      if (!attendeesSchedule[attendee]) {
+        attendeesSchedule[attendee] = [];
       }
+      attendeesSchedule[attendee].push({ start: startDate, end: endDate });
+    });
+  }
     }
   }
 
