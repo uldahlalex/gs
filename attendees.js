@@ -73,11 +73,11 @@ function checkAttendeeConflicts() {
 
 function checkDateConflictsAndColorCells() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + CONFIG.startRow + ":" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
+  var notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
   var notAllowedDates = notAllowedDatesRange.getValues().flat();
-  var startDateRange = sheet.getRange(CONFIG.startDateColumn + (CONFIG.startRow + 1) + ":" + CONFIG.startDateColumn);
+  var startDateRange = sheet.getRange(CONFIG.startDateColumn + CONFIG.startRow + ":" + CONFIG.startDateColumn);
   var startDateValues = startDateRange.getValues().flat();
-  var endDateRange = sheet.getRange(CONFIG.endDateColumn + (CONFIG.startRow + 1) + ":" + CONFIG.endDateColumn);
+  var endDateRange = sheet.getRange(CONFIG.endDateColumn + CONFIG.startRow + ":" + CONFIG.endDateColumn);
   var endDateValues = endDateRange.getValues().flat();
 
   // Clear any previous formatting
@@ -130,45 +130,97 @@ function generateDates() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
-  //const earliestDate = parseDate("6/7/2024");
   const earliestDate = sheet.getRange("B33").getValue();
-  //const latestDate = parseDate("1/7/2024")
   const latestDate = sheet.getRange("B34").getValue();
+  const interval = sheet.getRange("B36").getValue(); // Get the interval value from cell B36
   const attendeesSchedule = {};
+
+  // Get the not allowed dates from the specified range
+  const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
+  const notAllowedDates = notAllowedDatesRange.getValues().flat().map(date => new Date(date).setHours(0, 0, 0, 0));
+
+  // Populate the attendeesSchedule with existing events
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
+    const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
+    const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
+    const startDate = startDateCell.getValue();
+    const endDate = endDateCell.getValue();
+
+    if (startDate && endDate) {
+      attendees.forEach(attendee => {
+        if (!attendeesSchedule[attendee]) {
+          attendeesSchedule[attendee] = [];
+        }
+        attendeesSchedule[attendee].push({ start: startDate, end: endDate });
+      });
+    }
+  }
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
     const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
-    const totalTime = row[sheet.getRange(CONFIG.totalTidColumn + '1').getColumn() - 1];
+    let totalTime = row[sheet.getRange(CONFIG.totalTidColumn + '1').getColumn() - 1];
+    if(totalTime <=6) totalTime = 6;
     const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
     const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
 
-    if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime) {
-
+    if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && attendees.length > 0) {
       const totalDays = Math.ceil(totalTime / 6); // Convert hours to days, assuming 6 hours per day
-      let startDate = earliestDate;
+      let startDate = new Date(earliestDate);
       let endDate = new Date(startDate);
-
-      Browser.msgBox(totalTime, Browser.Buttons.OK_CANCEL);
       endDate.setDate(endDate.getDate() + totalDays - 1);
-      Browser.msgBox(endDate, Browser.Buttons.OK_CANCEL);
-      while (endDate > latestDate) {
-        startDate.setDate(startDate.getDate() + 1);
-        endDate.setDate(startDate.getDate() + totalDays - 1);
+
+      let hasConflict = true;
+      let attempts = 0;
+      const maxAttempts = 100; // Set a maximum number of attempts to find a non-conflicting slot
+
+      while (hasConflict && attempts < maxAttempts) {
+        hasConflict = false;
+
+        // Check if the proposed start date or any date within the event duration is a not allowed date
+        for (let j = 0; j < totalDays; j++) {
+          const currentDate = new Date(startDate);
+          currentDate.setDate(startDate.getDate() + j);
+          if (notAllowedDates.includes(currentDate.setHours(0, 0, 0, 0))) {
+            hasConflict = true;
+            break;
+          }
+        }
+
+        if (!hasConflict) {
+          // Check for conflicts across all attendees' schedules
+          for (const attendee of attendees) {
+            if (attendeesSchedule[attendee]) {
+              for (const event of attendeesSchedule[attendee]) {
+                if (startDate <= event.end.getTime() + interval * 24 * 60 * 60 * 1000 && endDate >= event.start) {
+                  hasConflict = true;
+                  break;
+                }
+              }
+              if (hasConflict) {
+                break;
+              }
+            }
+          }
+        }
+
+        if (hasConflict) {
+          startDate.setDate(startDate.getDate() + 1);
+          endDate.setDate(startDate.getDate() + totalDays - 1);
+          attempts++;
+        }
       }
 
-      let hasConflict = false;
-      attendees.forEach(attendee => {
-        if (attendeesSchedule[attendee]) {
-          hasConflict = attendeesSchedule[attendee].some(event => {
-            return (startDate <= event.end && endDate >= event.start);
-          });
-        }
-      });
+      if (!hasConflict && endDate <= latestDate) {
+        // Format the start and end dates as "dd/mm/yyyy"
+        const formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
+        const formattedEndDate = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
 
-      if (!hasConflict) {
-        startDateCell.setValue(startDate);
-        endDateCell.setValue(endDate);
+        startDateCell.setValue(formattedStartDate);
+        endDateCell.setValue(formattedEndDate);
+
         attendees.forEach(attendee => {
           if (!attendeesSchedule[attendee]) {
             attendeesSchedule[attendee] = [];
@@ -179,7 +231,6 @@ function generateDates() {
     }
   }
 }
-
 function parseDate(str) {
   var parts = str.split("/");
   return new Date(parseInt(parts[2], 10),
