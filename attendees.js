@@ -14,7 +14,7 @@ const CONFIG = {
   nonEditableColumns: ['J'],
 
   earliestDateCell: 'B33',
-  latestDateCell: 'B34',
+  // latestDateCell: 'B34',
 };
 
 
@@ -131,7 +131,6 @@ function generateDates() {
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
   const earliestDate = sheet.getRange("B33").getValue();
-  const latestDate = sheet.getRange("B34").getValue();
   const interval = sheet.getRange("B36").getValue(); // Get the interval value from cell B36
   const attendeesSchedule = {};
 
@@ -167,6 +166,7 @@ function generateDates() {
     const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
 
     if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && attendees.length > 0) {
+      Browser.msgBox(attendees, Browser.Buttons.OK_CANCEL);
       const totalDays = Math.ceil(totalTime / 6); // Convert hours to days, assuming 6 hours per day
       let startDate = new Date(earliestDate);
       let endDate = new Date(startDate);
@@ -213,7 +213,7 @@ function generateDates() {
         }
       }
 
-      if (!hasConflict && endDate <= latestDate) {
+      if (!hasConflict) {
         // Format the start and end dates as "dd/mm/yyyy"
         const formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
         const formattedEndDate = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd/MM/yyyy");
@@ -230,6 +230,8 @@ function generateDates() {
       }
     }
   }
+
+  checkAttendeeConflicts();
 }
 function parseDate(str) {
   var parts = str.split("/");
