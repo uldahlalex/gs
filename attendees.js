@@ -132,14 +132,11 @@ function generateDates() {
   const values = range.getValues();
   const earliestDate = sheet.getRange(CONFIG.earliestDateCell).getValue();
   const maksTid = sheet.getRange(CONFIG.maksTid).getValue();
-  const interval = 1;
   const attendeesSchedule = {};
 
   // Get the not allowed dates from the specified range
   const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
   const notAllowedDates = notAllowedDatesRange.getValues().flat().map(date => new Date(date).setHours(0, 0, 0, 0));
-
-  
 
   // Populate the attendeesSchedule with existing events
   for (let i = 0; i < values.length; i++) {
@@ -167,7 +164,7 @@ function generateDates() {
     }
   }
 
-
+let str = "";
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
     const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
@@ -203,44 +200,41 @@ function generateDates() {
           }
         }
 
-         const bufferDays = 2; // Specify the number of buffer days between events
+        if (!hasConflict) {
+          // Check for conflicts across all attendees' schedules
+          const attendeeSchedules = {};
+
+          for (const attendee of attendees) {
+            if (attendeesSchedule[attendee]) {
+              attendeeSchedules[attendee] = attendeesSchedule[attendee].map(event => ({
+                start: event.start,
+                end: event.end
+              }));
+            }
+          }
 
 
-  if (!hasConflict) {
-        const attendeeSchedules = {};
+    str = str + " NUMBER: "+i+": "+ JSON.stringify(attendeeSchedules, null, 2) + "CHECKING CONFLICT FOR: "+startDate + ", " + endDate;
+const bufferDays = 0;
+          for (const attendee of attendees) {
+            if (attendeeSchedules[attendee]) {
+              const conflicts = attendeeSchedules[attendee].some(event => {
+                const bufferStartDate = new Date(event.start);
+                bufferStartDate.setDate(bufferStartDate.getDate() - bufferDays);
 
-    for (const attendee of attendees) {
-      if (attendeesSchedule[attendee]) {
-        attendeeSchedules[attendee] = attendeesSchedule[attendee].map(event => ({
-          start: event.start.toISOString(),
-          end: event.end.toISOString()
-        }));
-      }
-    }
+                const bufferEndDate = new Date(event.end);
+                bufferEndDate.setDate(bufferEndDate.getDate() + bufferDays);
 
-    const scheduleJSON = JSON.stringify(attendeeSchedules, null, 2);
-    Browser.msgBox(scheduleJSON, Browser.Buttons.OK);
-    // Check for conflicts across all attendees' schedules
-    for (const attendee of attendees) {
-      if (attendeesSchedule[attendee]) {
-        for (const event of attendeesSchedule[attendee]) {
-          const bufferStartDate = new Date(event.end);
-          bufferStartDate.setDate(bufferStartDate.getDate() + bufferDays);
+                return (startDate < bufferEndDate && endDate > bufferStartDate);
+              });
 
-          const bufferEndDate = new Date(event.start);
-          bufferEndDate.setDate(bufferEndDate.getDate() - bufferDays);
-
-          if (startDate <= bufferStartDate && endDate >= bufferEndDate) {
-            hasConflict = true;
-            break;
+              if (conflicts) {
+                hasConflict = true;
+                break;
+              }
+            }
           }
         }
-        if (hasConflict) {
-          break;
-        }
-      }
-    }
-  }
 
         if (hasConflict) {
           startDate.setDate(startDate.getDate() + 1);
@@ -251,27 +245,37 @@ function generateDates() {
           endDate.setHours(23, 59, 59, 999);
           
           attempts++;
+
+          // Backtrack and reset attendees' schedules
+          attendees.forEach(attendee => {
+            if (attendeesSchedule[attendee]) {
+              attendeesSchedule[attendee] = attendeesSchedule[attendee].filter(event => {
+                return event.start < startDate || event.end > endDate;
+              });
+            }
+          });
         }
       }
-  if (!hasConflict) {
-    // Format the start and end dates as "dd/mm/yyyy HH:mm:ss"
-    const formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-    const formattedEndDate = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
 
-    startDateCell.setValue(formattedStartDate);
-    endDateCell.setValue(formattedEndDate);
+      if (!hasConflict) {
+        // Format the start and end dates as "dd/mm/yyyy HH:mm:ss"
+        const formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
+        const formattedEndDate = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
 
-    attendees.forEach(attendee => {
-      if (!attendeesSchedule[attendee]) {
-        attendeesSchedule[attendee] = [];
+        startDateCell.setValue(formattedStartDate);
+        endDateCell.setValue(formattedEndDate);
+
+        attendees.forEach(attendee => {
+          if (!attendeesSchedule[attendee]) {
+            attendeesSchedule[attendee] = [];
+          }
+          attendeesSchedule[attendee].push({ start: startDate, end: endDate });
+        });
       }
-      attendeesSchedule[attendee].push({ start: startDate, end: endDate });
-    });
-  }
     }
   }
+  checkAttendeeConflicts();    Browser.msgBox(str, Browser.Buttons.OK);
 
-  checkAttendeeConflicts();
 }
 function parseDate(str) {
   var parts = str.split("/");
