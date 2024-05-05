@@ -9,10 +9,10 @@ const CONFIG = {
   totalTidColumn: 'J',
   startRow: 2,
   endRow: 100,
-  conflictColor: "#800080", // Purple
-  dataCheckColumns: ['H', 'I'], // Columns that trigger calculateDuration
+  conflictColor: "#800080", 
+  dataCheckColumns: ['H', 'I'], //til beregning af maks tid
   nonEditableColumns: ['J'],
-
+  interval: 'B32',
   earliestDateCell: 'B33',
    maksTid: 'B31',
 };
@@ -80,23 +80,19 @@ function checkDateConflictsAndColorCells() {
   var endDateRange = sheet.getRange(CONFIG.endDateColumn + CONFIG.startRow + ":" + CONFIG.endDateColumn);
   var endDateValues = endDateRange.getValues().flat();
 
-  // Clear any previous formatting
   notAllowedDatesRange.setBackground(null);
   startDateRange.setBackground(null);
   endDateRange.setBackground(null);
 
-  // Loop through all start and end dates
   for (var i = 0; i < startDateValues.length; i++) {
     var startDate = startDateValues[i];
     var endDate = endDateValues[i];
-    if (startDate && endDate) { // Check if both start and end dates are present
+    if (startDate && endDate) { 
       startDate = new Date(startDate);
       endDate = new Date(endDate);
-      // Check against each not allowed date
       for (var j = 0; j < notAllowedDates.length; j++) {
         var notAllowedDate = new Date(notAllowedDates[j]);
         if (notAllowedDate >= startDate && notAllowedDate <= endDate) {
-          // If conflict, color the cells
           notAllowedDatesRange.getCell(j + 1, 1).setBackground(CONFIG.conflictColor);
           startDateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor);
           endDateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor);
@@ -120,26 +116,27 @@ function onEdit(e) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Bemærk: Det er ikke mening "total tid" manuelt skal sættes, da det automatisk sker når de forrige to kolonners værdier ændres');
     return;
   }
+}
 
-
-  if (e.range.getA1Notation() === "B30" && e.range.getValue() === "Go") {
-    generateDates();
-  }
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🪄EASV Koordinator Powertools🪄')
+    .addItem('Udfyld resten af datoerne for mig⚡', 'generateDates')
+    .addToUi();
 }
 function generateDates() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
-  const earliestDate = sheet.getRange(CONFIG.earliestDateCell).getValue();
-  const maksTid = sheet.getRange(CONFIG.maksTid).getValue();
+  const earliestDate = new Date(sheet.getRange(CONFIG.earliestDateCell).getValue());
+  earliestDate.setHours(0, 0, 0, 0); 
+  const maksTid = parseFloat(sheet.getRange(CONFIG.maksTid).getValue());
   const attendeesSchedule = {};
-
-  // Get the not allowed dates from the specified range
+  const interval = sheet.getRange(CONFIG.interval).getValue();
   const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
   const notAllowedDates = notAllowedDatesRange.getValues().flat().map(date => new Date(date).setHours(0, 0, 0, 0));
 
-  // Populate the attendeesSchedule with existing events
-  for (let i = 0; i < values.length; i++) {
+    for (let i = 0; i < values.length; i++) {
     const row = values[i];
     const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
     const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
@@ -150,11 +147,8 @@ function generateDates() {
     if (startDate && endDate) {
       const startDateTime = new Date(startDate);
       const endDateTime = new Date(endDate);
-      
-      // Set the start time to 00:00:00 and end time to 23:59:59 for all events
       startDateTime.setHours(0, 0, 0, 0);
       endDateTime.setHours(23, 59, 59, 999);
-      
       attendees.forEach(attendee => {
         if (!attendeesSchedule[attendee]) {
           attendeesSchedule[attendee] = [];
@@ -164,7 +158,6 @@ function generateDates() {
     }
   }
 
-let str = "";
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
     const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
@@ -173,98 +166,36 @@ let str = "";
     const startDateCell = sheet.getRange(CONFIG.startDateColumn + (i + CONFIG.startRow));
     const endDateCell = sheet.getRange(CONFIG.endDateColumn + (i + CONFIG.startRow));
 
-    if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && JSON.stringify(attendees).trim().length > 4) {
-      const totalDays = Math.ceil(totalTime / maksTid);
+    if (!startDateCell.getValue() && !endDateCell.getValue() && totalTime && attendees.length > 0 && JSON.stringify(attendees).trim().length > 4) {
+       const totalDays = Math.ceil(totalTime / maksTid);
       let startDate = new Date(earliestDate);
       let endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + totalDays - 1);
-      
-      // Set the start time to 00:00:00 and end time to 23:59:59 for all events
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
 
-      let hasConflict = true;
       let attempts = 0;
-      const maxAttempts = 100; // Set a maximum number of attempts to find a non-conflicting slot
+      const maxAttempts = 100; 
 
-      while (hasConflict && attempts < maxAttempts) {
-        hasConflict = false;
-
-        // Check if the proposed start date or any date within the event duration is a not allowed date
-        for (let j = 0; j < totalDays; j++) {
-          const currentDate = new Date(startDate);
-          currentDate.setDate(startDate.getDate() + j);
-          if (notAllowedDates.includes(currentDate.setHours(0, 0, 0, 0))) {
-            hasConflict = true;
-            break;
-          }
-        }
-
-        if (!hasConflict) {
-          // Check for conflicts across all attendees' schedules
-          const attendeeSchedules = {};
-
-          for (const attendee of attendees) {
-            if (attendeesSchedule[attendee]) {
-              attendeeSchedules[attendee] = attendeesSchedule[attendee].map(event => ({
-                start: event.start,
-                end: event.end
-              }));
-            }
-          }
-
-
-    str = str + " NUMBER: "+i+": "+ JSON.stringify(attendeeSchedules, null, 2) + "CHECKING CONFLICT FOR: "+startDate + ", " + endDate;
-const bufferDays = 0;
-          for (const attendee of attendees) {
-            if (attendeeSchedules[attendee]) {
-              const conflicts = attendeeSchedules[attendee].some(event => {
-                const bufferStartDate = new Date(event.start);
-                bufferStartDate.setDate(bufferStartDate.getDate() - bufferDays);
-
-                const bufferEndDate = new Date(event.end);
-                bufferEndDate.setDate(bufferEndDate.getDate() + bufferDays);
-
-                return (startDate < bufferEndDate && endDate > bufferStartDate);
-              });
-
-              if (conflicts) {
-                hasConflict = true;
-                break;
-              }
-            }
-          }
-        }
-
-        if (hasConflict) {
+      while (attempts < maxAttempts) {
+        
+        if (notAllowedDates.some(date => date >= startDate && date <= endDate)) {
           startDate.setDate(startDate.getDate() + 1);
-          endDate.setDate(startDate.getDate() + totalDays - 1);
-          
-          // Set the start time to 00:00:00 and end time to 23:59:59 for all events
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(23, 59, 59, 999);
-          
-          attempts++;
-
-          // Backtrack and reset attendees' schedules
-          attendees.forEach(attendee => {
-            if (attendeesSchedule[attendee]) {
-              attendeesSchedule[attendee] = attendeesSchedule[attendee].filter(event => {
-                return event.start < startDate || event.end > endDate;
-              });
-            }
-          });
+          endDate.setDate(endDate.getDate() + 1);
+        } else if (attendees.some(attendee => attendeesSchedule[attendee]?.some(event => event.start < endDate && startDate < event.end))) {
+          startDate.setDate(startDate.getDate() + 1 + interval);
+          endDate.setDate(endDate.getDate() + 1 + interval);
+        } else {
+          break;
         }
+        attempts++;
       }
 
-      if (!hasConflict) {
-        // Format the start and end dates as "dd/mm/yyyy HH:mm:ss"
+      if (attempts < maxAttempts) {
         const formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
         const formattedEndDate = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-
         startDateCell.setValue(formattedStartDate);
         endDateCell.setValue(formattedEndDate);
-
         attendees.forEach(attendee => {
           if (!attendeesSchedule[attendee]) {
             attendeesSchedule[attendee] = [];
@@ -274,25 +205,10 @@ const bufferDays = 0;
       }
     }
   }
-  checkAttendeeConflicts();    Browser.msgBox(str, Browser.Buttons.OK);
-
-}
-function parseDate(str) {
-  var parts = str.split("/");
-  return new Date(parseInt(parts[2], 10),
-      parseInt(parts[1], 10) - 1,
-      parseInt(parts[0], 10));
+  checkAttendeeConflicts();
 }
 
-function formatDate(date, format) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
 
-  return format.replace('dd', day).replace('MM', month).replace('yyyy', year).replace('HH', hours).replace('mm', minutes);
-}
 function calculateDuration(e) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const numRows = CONFIG.endRow - CONFIG.startRow + 1;
@@ -309,8 +225,6 @@ function calculateDuration(e) {
       const totalTidCell = sheet.getRange(CONFIG.totalTidColumn + (i + CONFIG.startRow));
       totalTidCell.setValue(totalTimeInHours);
       totalTidCell.setNumberFormat('#,##0.00');
-
-      // Check if the total time exceeds 50 hours
       if (totalTimeInHours > 50) {
         SpreadsheetApp.getActiveSpreadsheet().toast("Advarsel om mulig fejl-indtastning: Beregnet tid er over 50 timer, tjek venligst minutter per eksamen og holdstørrelse");
       }
