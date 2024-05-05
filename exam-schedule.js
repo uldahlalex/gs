@@ -1,17 +1,19 @@
 const CONFIG = {
   teachersColumn: 'A',
-  notAllowedDates: 'B',
+  totalWeightPerEmployeeColumn: 'B',
+  notAllowedDates: 'C',
   attendeesColumn: 'E',
   startDateColumn: 'F',
   endDateColumn: 'G',
   unitsColumn: 'H',
   minutesPerUnitColumn: 'I',
-  totalTidColumn: 'J',
+  totalTidColumn: 'K',
   startRow: 2,
   endRow: 100,
   conflictColor: "#800080", 
   dataCheckColumns: ['H', 'I'], //til beregning af maks tid
-  nonEditableColumns: ['J'],
+  weightPerUnitColumn: 'J',
+  nonEditableColumns: ['K'],
   interval: 'B32',
   earliestDateCell: 'B33',
    maksTid: 'B31',
@@ -115,6 +117,9 @@ function onEdit(e) {
   if (CONFIG.nonEditableColumns.includes(e.range.getA1Notation().charAt(0))) {
     SpreadsheetApp.getActiveSpreadsheet().toast('Bemærk: Det er ikke mening "total tid" manuelt skal sættes, da det automatisk sker når de forrige to kolonners værdier ændres');
     return;
+  }
+    if ([CONFIG.unitsColumn, CONFIG.weightPerUnitColumn, CONFIG.attendeesColumn].includes(e.range.getA1Notation().charAt(0))) {
+    calculateTotalWeight();
   }
 }
 
@@ -230,4 +235,40 @@ function calculateDuration(e) {
       }
     }
   }
+}
+
+function calculateTotalWeight() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
+  const weightPerUnitRange = sheet.getRange(CONFIG.weightPerUnitColumn + CONFIG.startRow + ':' + CONFIG.weightPerUnitColumn + CONFIG.endRow);
+  const unitsRange = sheet.getRange(CONFIG.unitsColumn + CONFIG.startRow + ':' + CONFIG.unitsColumn + CONFIG.endRow);
+  const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
+
+  const attendeesValues = attendeesRange.getValues();
+  const weightPerUnitValues = weightPerUnitRange.getValues();
+  const unitsValues = unitsRange.getValues();
+  const teachersValues = teachersRange.getValues();
+
+  let totalWeights = {};
+
+  attendeesValues.forEach((row, i) => {
+    const attendees = row[0].trim().split(/,\s*/);
+    const weightPerUnit = weightPerUnitValues[i][0];
+    const units = unitsValues[i][0];
+
+    attendees.forEach(attendee => {
+      if (!totalWeights[attendee]) {
+        totalWeights[attendee] = 0;
+      }
+      totalWeights[attendee] += weightPerUnit * units;
+    });
+  });
+
+  teachersValues.forEach((row, i) => {
+  const teacherInitials = row[0].trim();
+  if (totalWeights[teacherInitials] !== undefined && teacherInitials.length > 0) {
+    const weightCell = sheet.getRange(i + 2, sheet.getRange(CONFIG.totalWeightPerEmployeeColumn + '1').getColumn());
+    weightCell.setValue(totalWeights[teacherInitials]);
+  }
+});
 }
