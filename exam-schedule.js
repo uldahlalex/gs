@@ -12,7 +12,7 @@ const CONFIG = {
   endRow: 100,
   conflictColor: "#800080", 
   dataCheckColumns: ['H', 'I'], //til beregning af maks tid
-  weightPerUnitColumn: 'J',
+  //weightPerUnitColumn: 'J',
   nonEditableColumns: ['K'],
   interval: 'B32',
   earliestDateCell: 'B33',
@@ -110,17 +110,12 @@ function onEdit(e) {
     checkDateConflictsAndColorCells();
   }
 
-  if (CONFIG.dataCheckColumns.includes(e.range.getA1Notation().charAt(0))) {
-    calculateDuration(e);
-  }
-
-  if (CONFIG.nonEditableColumns.includes(e.range.getA1Notation().charAt(0))) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('Bemærk: Det er ikke mening "total tid" manuelt skal sættes, da det automatisk sker når de forrige to kolonners værdier ændres');
-    return;
-  }
-    if ([CONFIG.unitsColumn, CONFIG.weightPerUnitColumn, CONFIG.attendeesColumn].includes(e.range.getA1Notation().charAt(0))) {
+    calculateDuration();
     calculateTotalWeight();
-  }
+    const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  sheet.toast('Processing, please wait...', 'Status', 10); // message, title, timeout in seconds
+  
+
 }
 
 function onOpen() {
@@ -214,7 +209,7 @@ function generateDates() {
 }
 
 
-function calculateDuration(e) {
+function calculateDuration() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const numRows = CONFIG.endRow - CONFIG.startRow + 1;
   const unitsRange = sheet.getRange(CONFIG.unitsColumn + CONFIG.startRow + ':' + CONFIG.unitsColumn + CONFIG.endRow);
@@ -225,7 +220,7 @@ function calculateDuration(e) {
   for (let i = 0; i < numRows; i++) {
     const numUnits = unitsValues[i][0];
     const minutesPerUnit = minutesPerUnitValues[i][0];
-    if (numUnits && minutesPerUnit) {
+    if (numUnits && minutesPerUnit && !isNaN(numUnits) && !isNaN(minutesPerUnit)) {
       const totalTimeInHours = (numUnits * minutesPerUnit) / 60;
       const totalTidCell = sheet.getRange(CONFIG.totalTidColumn + (i + CONFIG.startRow));
       totalTidCell.setValue(totalTimeInHours);
@@ -233,6 +228,9 @@ function calculateDuration(e) {
       if (totalTimeInHours > 50) {
         SpreadsheetApp.getActiveSpreadsheet().toast("Advarsel om mulig fejl-indtastning: Beregnet tid er over 50 timer, tjek venligst minutter per eksamen og holdstørrelse");
       }
+    } else {
+          const totalTidCell = sheet.getRange(CONFIG.totalTidColumn + (i + CONFIG.startRow));
+                totalTidCell.setValue(0);
     }
   }
 }
@@ -240,35 +238,32 @@ function calculateDuration(e) {
 function calculateTotalWeight() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
-  const weightPerUnitRange = sheet.getRange(CONFIG.weightPerUnitColumn + CONFIG.startRow + ':' + CONFIG.weightPerUnitColumn + CONFIG.endRow);
-  const unitsRange = sheet.getRange(CONFIG.unitsColumn + CONFIG.startRow + ':' + CONFIG.unitsColumn + CONFIG.endRow);
+  const totalTidRange = sheet.getRange(CONFIG.totalTidColumn + CONFIG.startRow + ':' + CONFIG.totalTidColumn + CONFIG.endRow);
   const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
-
+  const totalBelastningPrInitial = sheet.getRange(CONFIG.totalWeightPerEmployeeColumn + '2:' + CONFIG.totalWeightPerEmployeeColumn + sheet.getLastRow());
   const attendeesValues = attendeesRange.getValues();
-  const weightPerUnitValues = weightPerUnitRange.getValues();
-  const unitsValues = unitsRange.getValues();
-  const teachersValues = teachersRange.getValues();
+  const totalTidValues = totalTidRange.getValues();
+  const teachersValues = teachersRange.getValues().map(row => row[0].trim());
 
-  let totalWeights = {};
+  let totalTimes = {};
 
   attendeesValues.forEach((row, i) => {
     const attendees = row[0].trim().split(/,\s*/);
-    const weightPerUnit = weightPerUnitValues[i][0];
-    const units = unitsValues[i][0];
+    const totalTime = parseFloat(totalTidValues[i][0]); // Ensure it's a number
 
     attendees.forEach(attendee => {
-      if (!totalWeights[attendee]) {
-        totalWeights[attendee] = 0;
+      if (!totalTimes[attendee]) {
+        totalTimes[attendee] = 0;
       }
-      totalWeights[attendee] += weightPerUnit * units;
+      totalTimes[attendee] += isNaN(totalTime) ? 0 : totalTime;
     });
   });
 
-  teachersValues.forEach((row, i) => {
-  const teacherInitials = row[0].trim();
-  if (totalWeights[teacherInitials] !== undefined && teacherInitials.length > 0) {
-    const weightCell = sheet.getRange(i + 2, sheet.getRange(CONFIG.totalWeightPerEmployeeColumn + '1').getColumn());
-    weightCell.setValue(totalWeights[teacherInitials]);
-  }
-});
+  totalBelastningPrInitial.clearContent();
+  teachersValues.forEach((teacherInitials, i) => {
+    if (totalTimes[teacherInitials] !== undefined && teacherInitials.length > 0) {
+      const weightCell = sheet.getRange(i + 2, sheet.getRange(CONFIG.totalWeightPerEmployeeColumn + '1').getColumn());
+      weightCell.setValue(totalTimes[teacherInitials]);
+    }
+  });
 }
