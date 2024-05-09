@@ -17,6 +17,7 @@ const CONFIG = {
      maksTid: 'L2',
      interval: 'L3',
   earliestDateCell: 'L4',
+  latestDateCell: 'L8'
 
 };
 
@@ -32,10 +33,13 @@ function checkAttendeeTypos() {
   attendeesRange.setBackground(null);
 
   attendeesValues.forEach((row, i) => {
-    const attendees = row[0].trim().split(/,\s*/);
-    const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
-    if (!allAttendeesValid) {
-      sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground('red');
+    const attendeeCellContent = row[0].trim();
+    if (attendeeCellContent) { 
+      const attendees = attendeeCellContent.split(/,\s*/);
+      const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
+      if (!allAttendeesValid) {
+        sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground('red');
+      }
     }
   });
 }
@@ -105,12 +109,16 @@ function checkDateConflictsAndColorCells() {
   }
 }
 function onEdit(e) {
-  var range = e.range;
   
-  if ([CONFIG.attendeesColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
+  if ([CONFIG.attendeesColumn, CONFIG.teachersColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
     checkAttendeeTypos();
     checkAttendeeConflicts();
     checkDateConflictsAndColorCells();
+  }
+
+  if([CONFIG.startDateColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
+    dateValidation();
+
   }
 
     calculateDuration();
@@ -119,6 +127,30 @@ function onEdit(e) {
 
 }
 
+function dateValidation() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  const startDateColIndex = sheet.getRange(CONFIG.startDateColumn + '1').getColumn();
+
+  const latestDate = new Date(sheet.getRange(CONFIG.latestDateCell).getValue());
+  
+  const numRows = CONFIG.endRow - CONFIG.startRow + 1;
+  const dateRange = sheet.getRange(CONFIG.startRow, startDateColIndex, numRows, 2); 
+  const dateValues = dateRange.getValues();
+
+  for (let i = 0; i < numRows; i++) {
+    const startDate = new Date(dateValues[i][0]);
+    const endDate = new Date(dateValues[i][1]); 
+
+    if (startDate > endDate || endDate > latestDate) {
+      dateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor); 
+      dateRange.getCell(i + 1, 2).setBackground(CONFIG.conflictColor);
+    } else {
+      dateRange.getCell(i + 1, 1).setBackground('#FFFFFF'); 
+      dateRange.getCell(i + 1, 2).setBackground('#FFFFFF'); 
+    }
+  }
+}
 function colorRedIfLackingInputs() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
@@ -154,8 +186,6 @@ function colorRedIfLackingInputs() {
 }
 function onOpen() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
-
-  sheet.toast('Dette ark er endnu ikke klar til at blive kopieret og anvendt', 'Regneark under redigering', 0); // message, title, timeout in seconds
   SpreadsheetApp.getUi()
     .createMenu('🪄EASV Koordinator Powertools🪄')
     .addItem('Udfyld resten af datoerne for mig⚡', 'generateDates')
@@ -243,6 +273,7 @@ function generateDates() {
     }
   }
   checkAttendeeConflicts();
+  dateValidation();
 }
 
 
