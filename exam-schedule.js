@@ -17,7 +17,8 @@ const CONFIG = {
      maksTid: 'L2',
      interval: 'L3',
   earliestDateCell: 'L4',
-  latestDateCell: 'L8'
+  latestDateCell: 'L8',
+  csvDataColumn: 'M'
 
 };
 
@@ -189,6 +190,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('🪄EASV Koordinator Powertools🪄')
     .addItem('Udfyld resten af datoerne for mig⚡', 'generateDates')
+    .addItem('Lav skemaer ud fra Moodle grupper (CSV i kolonne M)✨', 'createStudentSchedule')
     .addToUi();
 }
 function generateDates() {
@@ -341,4 +343,57 @@ function calculateDuration() {
       totalTidCell.setValue("");
     }
   }
+}
+
+
+function createStudentSchedule() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const mainSheet = spreadsheet.getActiveSheet();
+  const dataRange = mainSheet.getDataRange();
+  const dataValues = dataRange.getValues();
+  
+  const examNameColIndex = getColumnIndex(CONFIG.examName);
+  const minutesPerUnitColIndex = getColumnIndex(CONFIG.minutesPerUnitColumn);
+  const csvDataColIndex = getColumnIndex(CONFIG.csvDataColumn);
+
+  for (let i = CONFIG.startRow - 1; i < CONFIG.endRow; i++) {
+    const examName = dataValues[i][examNameColIndex - 1];
+    const csvData = dataValues[i][csvDataColIndex - 1];
+    const minutesPerUnit = dataValues[i][minutesPerUnitColIndex - 1];
+
+    if (csvData && examName) {
+      const groups = Utilities.parseCsv(csvData);
+      let scheduleSheet = spreadsheet.getSheetByName(examName);
+      if (!scheduleSheet) {
+        scheduleSheet = spreadsheet.insertSheet(examName);
+      } else {
+        scheduleSheet.clear(); 
+      }
+
+      scheduleSheet.appendRow(['Student (full name)', 'Group name', 'Starting time']);
+
+      let startTime = new Date();
+      startTime.setHours(9, 0, 0, 0); 
+
+      groups.forEach(group => {
+        const groupName = group[1]; 
+        for (let memberIndex = 8; memberIndex < group.length; memberIndex += 4) {
+          if (group[memberIndex]) { 
+            const fullName = group[memberIndex + 2] + ' ' + group[memberIndex + 3]; 
+            scheduleSheet.appendRow([
+              fullName,
+              groupName,
+              Utilities.formatDate(startTime, spreadsheet.getSpreadsheetTimeZone(), 'HH:mm')
+            ]);
+
+            startTime = new Date(startTime.getTime() + minutesPerUnit * 60000);
+          }
+        }
+      });
+    }
+  }
+}
+
+function getColumnIndex(columnLetter) {
+  return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getRange(columnLetter + '1').getColumn();
 }
