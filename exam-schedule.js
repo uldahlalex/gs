@@ -7,16 +7,16 @@ const CONFIG = {
   endDateColumn: 'G',
   unitsColumn: 'H',
   minutesPerUnitColumn: 'I',
-  totalTidColumn: 'K',
+  totalTidColumn: 'J',
   startRow: 2,
   endRow: 100,
-  conflictColor: "#800080", 
+  conflictColor: "#e391e3", 
   dataCheckColumns: ['H', 'I'], //til beregning af maks tid
-  //weightPerUnitColumn: 'J',
-  nonEditableColumns: ['K'],
-  interval: 'B32',
-  earliestDateCell: 'B33',
-   maksTid: 'B31',
+  nonEditableColumns: ['J'],
+     maksTid: 'L2',
+     interval: 'L3',
+  earliestDateCell: 'L4',
+
 };
 
 
@@ -104,6 +104,8 @@ function checkDateConflictsAndColorCells() {
   }
 }
 function onEdit(e) {
+  var range = e.range;
+  
   if ([CONFIG.attendeesColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
     checkAttendeeTypos();
     checkAttendeeConflicts();
@@ -112,13 +114,33 @@ function onEdit(e) {
 
     calculateDuration();
     calculateTotalWeight();
-    const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  sheet.toast('Processing, please wait...', 'Status', 10); // message, title, timeout in seconds
-  
+    colorRedIfLackingInputs();
 
 }
 
+function colorRedIfLackingInputs() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  const startRow = 2; 
+  const lastRow = sheet.getLastRow();
+  
+  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + startRow + ':'+CONFIG.attendeesColumn + lastRow);
+  const attendeesValues = attendeesRange.getValues();
+  
+  for (let i = 0; i < attendeesValues.length; i++) {
+    if (attendeesValues[i][0]) {  
+      const hCell = sheet.getRange(startRow + i, 8);  
+      const iCell = sheet.getRange(startRow + i, 9);  
+      
+      hCell.setBackground(hCell.getValue() ? '#FFFFFF' : '#FF0000');
+      iCell.setBackground(iCell.getValue() ? '#FFFFFF' : '#FF0000');
+    }
+  }
+}
 function onOpen() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  sheet.toast('Dette ark er endnu ikke klar til at blive kopieret og anvendt', 'Regneark under redigering', 0); // message, title, timeout in seconds
   SpreadsheetApp.getUi()
     .createMenu('🪄EASV Koordinator Powertools🪄')
     .addItem('Udfyld resten af datoerne for mig⚡', 'generateDates')
@@ -249,7 +271,7 @@ function calculateTotalWeight() {
 
   attendeesValues.forEach((row, i) => {
     const attendees = row[0].trim().split(/,\s*/);
-    const totalTime = parseFloat(totalTidValues[i][0]); // Ensure it's a number
+    const totalTime = parseFloat(totalTidValues[i][0]); 
 
     attendees.forEach(attendee => {
       if (!totalTimes[attendee]) {
