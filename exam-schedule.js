@@ -2,12 +2,13 @@ const CONFIG = {
   teachersColumn: 'A',
   totalWeightPerEmployeeColumn: 'B',
   notAllowedDates: 'C',
+  examName: 'D',
   attendeesColumn: 'E',
-  startDateColumn: 'F',
-  endDateColumn: 'G',
-  unitsColumn: 'H',
-  minutesPerUnitColumn: 'I',
-  totalTidColumn: 'J',
+  startDateColumn: 'I',
+  endDateColumn: 'J',
+  unitsColumn: 'F',
+  minutesPerUnitColumn: 'G',
+  totalTidColumn: 'H',
   startRow: 2,
   endRow: 100,
   conflictColor: "#e391e3", 
@@ -121,19 +122,33 @@ function onEdit(e) {
 function colorRedIfLackingInputs() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
-  const startRow = 2; 
-  const lastRow = sheet.getLastRow();
+  const examNameColIndex = sheet.getRange(CONFIG.examName + '1').getColumn();
+  const attendeesColIndex = sheet.getRange(CONFIG.attendeesColumn + '1').getColumn();
+  const unitsColIndex = sheet.getRange(CONFIG.unitsColumn + '1').getColumn();
+  const minutesPerUnitColIndex = sheet.getRange(CONFIG.minutesPerUnitColumn + '1').getColumn();
   
-  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + startRow + ':'+CONFIG.attendeesColumn + lastRow);
-  const attendeesValues = attendeesRange.getValues();
+  const startRow = CONFIG.startRow;
+  const endRow = CONFIG.endRow;
+  const numRows = endRow - startRow + 1;
   
-  for (let i = 0; i < attendeesValues.length; i++) {
-    if (attendeesValues[i][0]) {  
-      const hCell = sheet.getRange(startRow + i, 8);  
-      const iCell = sheet.getRange(startRow + i, 9);  
-      
-      hCell.setBackground(hCell.getValue() ? '#FFFFFF' : '#FF0000');
-      iCell.setBackground(iCell.getValue() ? '#FFFFFF' : '#FF0000');
+  const range = sheet.getRange(startRow, 1, numRows, sheet.getMaxColumns());
+  const values = range.getValues();
+
+  for (let i = 0; i < numRows; i++) {
+    const row = values[i];
+    
+    if (String(row[attendeesColIndex - 1]).trim()) {
+      const examNameColor = String(row[examNameColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
+      const unitsColor = String(row[unitsColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
+      const minutesPerUnitColor = String(row[minutesPerUnitColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
+
+      range.getCell(i + 1, examNameColIndex).setBackground(examNameColor);
+      range.getCell(i + 1, unitsColIndex).setBackground(unitsColor);
+      range.getCell(i + 1, minutesPerUnitColIndex).setBackground(minutesPerUnitColor);
+    } else {
+      range.getCell(i + 1, examNameColIndex).setBackground('#FFFFFF');
+      range.getCell(i + 1, unitsColIndex).setBackground('#FFFFFF');
+      range.getCell(i + 1, minutesPerUnitColIndex).setBackground('#FFFFFF');
     }
   }
 }
@@ -231,31 +246,6 @@ function generateDates() {
 }
 
 
-function calculateDuration() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const numRows = CONFIG.endRow - CONFIG.startRow + 1;
-  const unitsRange = sheet.getRange(CONFIG.unitsColumn + CONFIG.startRow + ':' + CONFIG.unitsColumn + CONFIG.endRow);
-  const minutesPerUnitRange = sheet.getRange(CONFIG.minutesPerUnitColumn + CONFIG.startRow + ':' + CONFIG.minutesPerUnitColumn + CONFIG.endRow);
-  const unitsValues = unitsRange.getValues();
-  const minutesPerUnitValues = minutesPerUnitRange.getValues();
-
-  for (let i = 0; i < numRows; i++) {
-    const numUnits = unitsValues[i][0];
-    const minutesPerUnit = minutesPerUnitValues[i][0];
-    if (numUnits && minutesPerUnit && !isNaN(numUnits) && !isNaN(minutesPerUnit)) {
-      const totalTimeInHours = (numUnits * minutesPerUnit) / 60;
-      const totalTidCell = sheet.getRange(CONFIG.totalTidColumn + (i + CONFIG.startRow));
-      totalTidCell.setValue(totalTimeInHours);
-      totalTidCell.setNumberFormat('#,##0.00');
-      if (totalTimeInHours > 50) {
-        SpreadsheetApp.getActiveSpreadsheet().toast("Advarsel om mulig fejl-indtastning: Beregnet tid er over 50 timer, tjek venligst minutter per eksamen og holdstørrelse");
-      }
-    } else {
-          const totalTidCell = sheet.getRange(CONFIG.totalTidColumn + (i + CONFIG.startRow));
-                totalTidCell.setValue(0);
-    }
-  }
-}
 
 function calculateTotalWeight() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -288,4 +278,36 @@ function calculateTotalWeight() {
       weightCell.setValue(totalTimes[teacherInitials]);
     }
   });
+}
+
+function calculateDuration() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const numRows = CONFIG.endRow - CONFIG.startRow + 1;
+  const unitsRange = sheet.getRange(CONFIG.unitsColumn + CONFIG.startRow + ':' + CONFIG.unitsColumn + CONFIG.endRow);
+  const minutesPerUnitRange = sheet.getRange(CONFIG.minutesPerUnitColumn + CONFIG.startRow + ':' + CONFIG.minutesPerUnitColumn + CONFIG.endRow);
+  const unitsValues = unitsRange.getValues();
+  const minutesPerUnitValues = minutesPerUnitRange.getValues();
+
+  for (let i = 0; i < numRows; i++) {
+    const numUnits = unitsValues[i][0];
+    const minutesPerUnit = minutesPerUnitValues[i][0];
+    const totalTidCell = sheet.getRange(CONFIG.totalTidColumn + (i + CONFIG.startRow));
+
+    if (numUnits && minutesPerUnit && !isNaN(numUnits) && !isNaN(minutesPerUnit) && numUnits > 0 && minutesPerUnit > 0) {
+      const totalTimeInHours = (numUnits * minutesPerUnit) / 60;
+      
+      if (totalTimeInHours > 0) {
+        totalTidCell.setValue(totalTimeInHours);
+        totalTidCell.setNumberFormat('#,##0.00');
+      } else {
+        totalTidCell.setValue("");
+      }
+
+      if (totalTimeInHours > 50) {
+        SpreadsheetApp.getActiveSpreadsheet().toast("Advarsel om mulig fejl-indtastning: Beregnet tid er over 50 timer, tjek venligst minutter per eksamen og holdstørrelse");
+      }
+    } else {
+      totalTidCell.setValue("");
+    }
+  }
 }
