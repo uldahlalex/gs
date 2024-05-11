@@ -1,49 +1,32 @@
 const CONFIG = {
   teachersColumn: 'A',
   totalWeightPerEmployeeColumn: 'B',
-  notAllowedDates: 'C',
-  examName: 'D',
-  attendeesColumn: 'E',
-  startDateColumn: 'I',
-  endDateColumn: 'J',
-  unitsColumn: 'F',
-  minutesPerUnitColumn: 'G',
-  totalTidColumn: 'H',
+  tilladteHold: 'C',
+  notAllowedDates: 'D',
+  eksamensHoldColumn: 'E',
+  examNameColumn: 'F',
+  attendeesColumn: 'G',
+  unitsColumn: 'H',
+  minutesPerUnitColumn: 'I',
+
+  totalTidColumn: 'J',
+  startDateColumn: 'K',
+  endDateColumn: 'L',
+  csvDataColumn: 'M',
+
   startRow: 2,
   endRow: 100,
   conflictColor: "#e391e3", 
-  dataCheckColumns: ['H', 'I'], //til beregning af maks tid
-  nonEditableColumns: ['J'],
-     maksTid: 'L2',
-     interval: 'L3',
-  earliestDateCell: 'L4',
-  latestDateCell: 'L8',
-  csvDataColumn: 'M'
+
+
+  maksTid: 'N2',
+  interval: 'N3',
+  earliestDateCell: 'N4',
+  latestDateCell: 'N8'
 
 };
 
 
-function checkAttendeeTypos() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
-  const teachersValues = teachersRange.getValues();
-  const teachers = teachersValues.map(row => row[0].trim());
-  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
-  const attendeesValues = attendeesRange.getValues();
-
-  attendeesRange.setBackground(null);
-
-  attendeesValues.forEach((row, i) => {
-    const attendeeCellContent = row[0].trim();
-    if (attendeeCellContent) { 
-      const attendees = attendeeCellContent.split(/,\s*/);
-      const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
-      if (!allAttendeesValid) {
-        sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground('red');
-      }
-    }
-  });
-}
 
 function checkAttendeeConflicts() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -79,6 +62,28 @@ function checkAttendeeConflicts() {
   }
 }
 
+function checkAttendeeTypos() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
+  const teachersValues = teachersRange.getValues();
+  const teachers = teachersValues.map(row => row[0].trim());
+  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
+  const attendeesValues = attendeesRange.getValues();
+
+  attendeesRange.setBackground(null);
+
+  attendeesValues.forEach((row, i) => {
+    const attendeeCellContent = row[0].trim();
+    if (attendeeCellContent) { 
+      const attendees = attendeeCellContent.split(/,\s*/);
+      const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
+      if (!allAttendeesValid) {
+        sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground('red');
+      }
+    }
+  });
+}
+
 function checkDateConflictsAndColorCells() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
@@ -111,13 +116,15 @@ function checkDateConflictsAndColorCells() {
 }
 function onEdit(e) {
   
-  if ([CONFIG.attendeesColumn, CONFIG.teachersColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
+  if ([CONFIG.attendeesColumn, CONFIG.tilladteHold, CONFIG.eksamensHoldColumn, CONFIG.teachersColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
     checkAttendeeTypos();
     checkAttendeeConflicts();
     checkDateConflictsAndColorCells();
+    checkHoldConflicts();
+    checkHoldTypos();
   }
 
-  if([CONFIG.startDateColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
+  if([CONFIG.startDateColumn, CONFIG.eksamensHoldColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
     dateValidation();
 
   }
@@ -126,6 +133,14 @@ function onEdit(e) {
     calculateTotalWeight();
     colorRedIfLackingInputs();
 
+}
+
+function checkHoldConflicts() {
+  //the same hold cannot be booked for the same dates (+ interval)
+}
+
+function checkHoldTypos() {
+  //just like attendee conflicts
 }
 
 function dateValidation() {
@@ -155,11 +170,13 @@ function dateValidation() {
 function colorRedIfLackingInputs() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
-  const examNameColIndex = sheet.getRange(CONFIG.examName + '1').getColumn();
+  const examNameColIndex = sheet.getRange(CONFIG.examNameColumn + '1').getColumn();
   const attendeesColIndex = sheet.getRange(CONFIG.attendeesColumn + '1').getColumn();
   const unitsColIndex = sheet.getRange(CONFIG.unitsColumn + '1').getColumn();
   const minutesPerUnitColIndex = sheet.getRange(CONFIG.minutesPerUnitColumn + '1').getColumn();
+  const eksamensHoldIndex = sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn();
   
+
   const startRow = CONFIG.startRow;
   const endRow = CONFIG.endRow;
   const numRows = endRow - startRow + 1;
@@ -173,15 +190,22 @@ function colorRedIfLackingInputs() {
     if (String(row[attendeesColIndex - 1]).trim()) {
       const examNameColor = String(row[examNameColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
       const unitsColor = String(row[unitsColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
-      const minutesPerUnitColor = String(row[minutesPerUnitColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
+      const minutesPerUnitColor = String(row[minutesPerUnitColIndex - 1]).trim() ? '#FFFFFF' :
+       '#FF0000'; 
+             const eksamensHoldColor = String(row[eksamensHoldIndex - 1]).trim() ? '#FFFFFF' :
+       '#FF0000'; 
 
       range.getCell(i + 1, examNameColIndex).setBackground(examNameColor);
       range.getCell(i + 1, unitsColIndex).setBackground(unitsColor);
       range.getCell(i + 1, minutesPerUnitColIndex).setBackground(minutesPerUnitColor);
+            range.getCell(i + 1, eksamensHoldIndex).setBackground(eksamensHoldColor);
+
     } else {
       range.getCell(i + 1, examNameColIndex).setBackground('#FFFFFF');
       range.getCell(i + 1, unitsColIndex).setBackground('#FFFFFF');
       range.getCell(i + 1, minutesPerUnitColIndex).setBackground('#FFFFFF');
+            range.getCell(i + 1, eksamensHoldIndex).setBackground('#FFFFFF');
+
     }
   }
 }
@@ -352,7 +376,7 @@ function createStudentSchedule() {
   const dataRange = mainSheet.getDataRange();
   const dataValues = dataRange.getValues();
   
-  const examNameColIndex = getColumnIndex(CONFIG.examName);
+  const examNameColIndex = getColumnIndex(CONFIG.examNameColumn);
   const minutesPerUnitColIndex = getColumnIndex(CONFIG.minutesPerUnitColumn);
   const csvDataColIndex = getColumnIndex(CONFIG.csvDataColumn);
 
