@@ -1,6 +1,6 @@
 Tilladte initialer 	Total eksaminerinstimer	Tilladte hold	Ikke tilladte datoer	Eksamensnavn	Eksamenshold	Deltagere	Holdstørrelse	Minutter per eksamen	Total tid (timer i decimal)	Start tid (reserveret)	Slut tid (reserveret)	Moodle grupper CSV (til at lave tidsplan)	Auto-udfyld indstillinger:														
-jle	3.33	csa	01/06/2024	2. Semester eksamen 									Maks timer pr dag:	6.50													
-aup		csb	02/06/2024	Eksamen 1 	csa	jle	10	20	3.33	3/6	03/06/2024 23:59:59	"sep=,
+jle	10.83	csa	01/06/2024	2. Semester eksamen 									Maks timer pr dag:	6.50													
+aup		csb	02/06/2024	Eksamen 1 	csa	jle	10	20	3.33	3/6	3/6	"sep=,
 Group ID,Group Name,Group Size,Group Description,Assigned teacher Username,Assigned teacher Firstname,Assigned teacher Lastname,Assigned teacher Email,Member 1 Username,Member 1 ID Number,Member 1 Firstname,Member 1 Lastname,Member 1 Email,Member 2 Username,Member 2 ID Number,Member 2 Firstname,Member 2 Lastname,Member 2 Email,Member 3 Username,Member 3 ID Number,Member 3 Firstname,Member 3 Lastname,Member 3 Email,Member 4 Username,Member 4 ID Number,Member 4 Firstname,Member 4 Lastname,Member 4 Email,Member 5 Username,Member 5 ID Number,Member 5 Firstname,Member 5 Lastname,Member 5 Email
 ""3899"",""KingKill"",""0"",""Kun gud kan hjælpe dig."","""","""","""",""""
 ""3900"",""Code of Duty: Code Ops 2"",""0"",""General Saj Jung, General Hollænder og Sergeant Iversen
@@ -33,7 +33,7 @@ ByeBye JavaFx
 ""4088"",""Singleton()"",""1"","""","""","""","""","""",""maheyb01"","""",""Mahmoud Abdulrahman"",""Eybo"",""maheyb01@easv365.dk""
 ""4089"",""me"",""1"","""","""","""","""","""",""olijoe01"","""",""Oliver Ager"",""Jørgensen"",""olijoe01@easv365.dk""
 ""4110"",""xdd"",""0"","""","""","""","""","""""	Buffer-dage for undervisere:	1													
-rpe		cst	05/06/2024	Eksamen 2 	csa	tgt	15	30	7.50	03/06/2024 00:00:00	03/06/2024 23:59:59	"sep=,
+rpe		cst	05/06/2024	Eksamen 2 	csa	tgt, jle	15	30	7.50	6/6	7/6	"sep=,
 Group ID,Group Name,Group Size,Group Description,Assigned teacher Username,Assigned teacher Firstname,Assigned teacher Lastname,Assigned teacher Email,Member 1 Username,Member 1 ID Number,Member 1 Firstname,Member 1 Lastname,Member 1 Email,Member 2 Username,Member 2 ID Number,Member 2 Firstname,Member 2 Lastname,Member 2 Email,Member 3 Username,Member 3 ID Number,Member 3 Firstname,Member 3 Lastname,Member 3 Email,Member 4 Username,Member 4 ID Number,Member 4 Firstname,Member 4 Lastname,Member 4 Email,Member 5 Username,Member 5 ID Number,Member 5 Firstname,Member 5 Lastname,Member 5 Email
 ""3899"",""KingKill"",""0"",""Kun gud kan hjælpe dig."","""","""","""",""""
 ""3900"",""Code of Duty: Code Ops 2"",""0"",""General Saj Jung, General Hollænder og Sergeant Iversen
@@ -71,16 +71,16 @@ tgt	7.50		09/06/2024
 ksk			15/06/2024										Andre validerings-indstillinger:														
 hk			16/06/2024										Marker som fejl hvis dato er senere end:	01/07/2024													
 pas			22/06/2024										Marker som konflikt hvis eksamens-hold har buffer på mindre følgende antal dage:	1													
-tbmh			23/06/2024										Marker som konflikt hvis undervisere har buffer på mindre end følgende antal dage:	0													
+tbmh			23/06/2024										Marker som konflikt hvis undervisere har buffer på mindre end følgende antal dage:	2													
 hbh			29/06/2024																								
 erkr			30/06/2024																								
 smsj																											
 aup																											
-ikm																											
-hsan																											
-ssi																											
-																											
-																											
+ikm													Farvekoder:														
+hsan													Rød: Tastefejl / ukendte værdier / tomme celler / sliut dato tidligere end start dato														
+ssi													Lilla: Helligdags-konflikt														
+													Oranage: Dobbeltbooking konflikt for undervisere														
+													Blå: Dobbeltbooking konflikt for eksamenshold														
 																											
 																											
 																											

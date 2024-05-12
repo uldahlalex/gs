@@ -25,47 +25,53 @@ const CONFIG = {
   earliestDateCell: 'O4',
   latestDateCell: 'O8',
     holdInterval: 'O9',
+    attendeeInterval: 'O10'
 
 };
-
-
-
 function checkHoldConflicts() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const holdInterval = parseInt(sheet.getRange(CONFIG.holdInterval).getValue());
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
-  const holdsToCheck = {};
+  const holdsSchedule = {};
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
+    const holds = row[sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn() - 1].split(',');
     const startDate = new Date(row[sheet.getRange(CONFIG.startDateColumn + '1').getColumn() - 1]);
     const endDate = new Date(row[sheet.getRange(CONFIG.endDateColumn + '1').getColumn() - 1]);
-    const hold = row[sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn() - 1].trim();
 
-    if (hold) { // Only proceed if there's a group assigned
-      if (!holdsToCheck[hold]) {
-        holdsToCheck[hold] = [{ start: startDate, end: endDate, row: i + CONFIG.startRow }];
-      } else {
-        const conflicts = holdsToCheck[hold].some(event => {
-          const hasConflict = (startDate < event.end && endDate > event.start);
-          if (hasConflict) {
-            // Color the conflicting hold cell in 'orange'
-            sheet.getRange(event.row, sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
-            sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
-          }
-          return hasConflict;
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    holds.forEach(hold => {
+      hold = hold.trim();
+      
+      if (hold) {
+        if (!holdsSchedule[hold]) {
+          holdsSchedule[hold] = [];
+        }
+        
+        const conflicts = holdsSchedule[hold].some(event => {
+          const adjustedEventEnd = new Date(event.end);
+          adjustedEventEnd.setDate(adjustedEventEnd.getDate() + holdInterval);
+
+          return startDate < adjustedEventEnd && endDate > event.start;
         });
 
-        if (!conflicts) {
-          holdsToCheck[hold].push({ start: startDate, end: endDate, row: i + CONFIG.startRow });
+        if (conflicts) {
+          sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
+        } else {
+          holdsSchedule[hold].push({ start: startDate, end: endDate });
         }
       }
-    }
+    });
   }
 }
 
 function checkAttendeeConflicts() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const attendeeInterval = parseInt(sheet.getRange(CONFIG.attendeeInterval).getValue());
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
   const attendeesToCheck = {};
@@ -74,6 +80,8 @@ function checkAttendeeConflicts() {
     const row = values[i];
     const startDate = new Date(row[sheet.getRange(CONFIG.startDateColumn + '1').getColumn() - 1]);
     const endDate = new Date(row[sheet.getRange(CONFIG.endDateColumn + '1').getColumn() - 1]);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
     const attendees = row[sheet.getRange(CONFIG.attendeesColumn + '1').getColumn() - 1].trim().split(/,\s*/);
 
     attendees.forEach(attendee => {
@@ -82,22 +90,25 @@ function checkAttendeeConflicts() {
         attendeesToCheck[attendee] = [{ start: startDate, end: endDate, row: i + CONFIG.startRow }];
       } else {
         const conflicts = attendeesToCheck[attendee].some(event => {
-          const hasConflict = (startDate <= event.end && endDate >= event.start);
+          const adjustedEventEnd = new Date(event.end);
+          adjustedEventEnd.setDate(adjustedEventEnd.getDate() + attendeeInterval);
+          const hasConflict = (startDate <= adjustedEventEnd && endDate >= event.start);
+
           if (hasConflict) {
-            sheet.getRange(event.row, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground('orange');
+            sheet.getRange(event.row, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
+            sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
           }
           return hasConflict;
         });
 
-        if (conflicts) {
-          sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground('orange');
+        if (!conflicts) {
+          attendeesToCheck[attendee].push({ start: startDate, end: endDate, row: i + CONFIG.startRow });
         }
-        attendeesToCheck[attendee].push({ start: startDate, end: endDate, row: i + CONFIG.startRow });
       }
     });
   }
-}
 
+}
 function checkAttendeeTypos() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
@@ -152,18 +163,18 @@ function checkDateConflictsAndColorCells() {
 }
 function onEdit(e) {
       colorRedIfLackingInputs();
-  if ([CONFIG.attendeesColumn, CONFIG.tilladteHold, CONFIG.eksamensHoldColumn, CONFIG.teachersColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
+ // if ([CONFIG.attendeesColumn, CONFIG.tilladteHold, CONFIG.eksamensHoldColumn, CONFIG.teachersColumn, CONFIG.startDateColumn,CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
     checkAttendeeTypos();
     checkAttendeeConflicts();
     checkDateConflictsAndColorCells();
     checkHoldConflicts();
     checkHoldTypos();
-  }
+ // }
 
-  if([CONFIG.startDateColumn, CONFIG.eksamensHoldColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
+ // if([CONFIG.startDateColumn, CONFIG.eksamensHoldColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
     dateValidation();
 
-  }
+ // }
 
     calculateDuration();
     calculateTotalWeight();
@@ -329,9 +340,11 @@ function generateDates() {
         });
       }
     }
-  }
-  checkAttendeeConflicts();
+  }  
   dateValidation();
+  checkAttendeeConflicts();
+  checkHoldConflicts();
+
 }
 
 
