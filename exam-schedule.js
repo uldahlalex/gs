@@ -3,8 +3,9 @@ const CONFIG = {
   totalWeightPerEmployeeColumn: 'B',
   tilladteHold: 'C',
   notAllowedDates: 'D',
-  eksamensHoldColumn: 'E',
-  examNameColumn: 'F',
+    examNameColumn: 'E',
+  eksamensHoldColumn: 'F',
+
   attendeesColumn: 'G',
   unitsColumn: 'H',
   minutesPerUnitColumn: 'I',
@@ -19,14 +20,49 @@ const CONFIG = {
   conflictColor: "#e391e3", 
 
 
-  maksTid: 'N2',
-  interval: 'N3',
-  earliestDateCell: 'N4',
-  latestDateCell: 'N8'
+  maksTid: 'O2',
+  interval: 'O3',
+  earliestDateCell: 'O4',
+  latestDateCell: 'O8',
+    holdInterval: 'O9',
 
 };
 
 
+
+function checkHoldConflicts() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
+  const values = range.getValues();
+  const holdsToCheck = {};
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const startDate = new Date(row[sheet.getRange(CONFIG.startDateColumn + '1').getColumn() - 1]);
+    const endDate = new Date(row[sheet.getRange(CONFIG.endDateColumn + '1').getColumn() - 1]);
+    const hold = row[sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn() - 1].trim();
+
+    if (hold) { // Only proceed if there's a group assigned
+      if (!holdsToCheck[hold]) {
+        holdsToCheck[hold] = [{ start: startDate, end: endDate, row: i + CONFIG.startRow }];
+      } else {
+        const conflicts = holdsToCheck[hold].some(event => {
+          const hasConflict = (startDate < event.end && endDate > event.start);
+          if (hasConflict) {
+            // Color the conflicting hold cell in 'orange'
+            sheet.getRange(event.row, sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
+            sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
+          }
+          return hasConflict;
+        });
+
+        if (!conflicts) {
+          holdsToCheck[hold].push({ start: startDate, end: endDate, row: i + CONFIG.startRow });
+        }
+      }
+    }
+  }
+}
 
 function checkAttendeeConflicts() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -115,7 +151,7 @@ function checkDateConflictsAndColorCells() {
   }
 }
 function onEdit(e) {
-  
+      colorRedIfLackingInputs();
   if ([CONFIG.attendeesColumn, CONFIG.tilladteHold, CONFIG.eksamensHoldColumn, CONFIG.teachersColumn, CONFIG.startDateColumn, CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
     checkAttendeeTypos();
     checkAttendeeConflicts();
@@ -131,13 +167,10 @@ function onEdit(e) {
 
     calculateDuration();
     calculateTotalWeight();
-    colorRedIfLackingInputs();
+
 
 }
 
-function checkHoldConflicts() {
-  //the same hold cannot be booked for the same dates (+ interval)
-}
 
 function checkHoldTypos() {
   //just like attendee conflicts
@@ -210,7 +243,6 @@ function colorRedIfLackingInputs() {
   }
 }
 function onOpen() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet();
   SpreadsheetApp.getUi()
     .createMenu('🪄EASV Koordinator Powertools🪄')
     .addItem('Udfyld resten af datoerne for mig⚡', 'generateDates')
