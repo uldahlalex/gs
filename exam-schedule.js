@@ -5,11 +5,9 @@ const CONFIG = {
   notAllowedDates: 'D',
     examNameColumn: 'E',
   eksamensHoldColumn: 'F',
-
   attendeesColumn: 'G',
   unitsColumn: 'H',
   minutesPerUnitColumn: 'I',
-
   totalTidColumn: 'J',
   startDateColumn: 'K',
   endDateColumn: 'L',
@@ -17,15 +15,14 @@ const CONFIG = {
 
   startRow: 2,
   endRow: 100,
-  conflictColor: "#e391e3", 
-
-
+  invalidDataColor: "red",
+  dateValidationErrorColor: 'orange', 
   maksTid: 'O2',
   interval: 'O3',
   earliestDateCell: 'O4',
   latestDateCell: 'O8',
-    holdInterval: 'O9',
-    attendeeInterval: 'O10'
+  holdInterval: 'O9',
+  attendeeInterval: 'O10'
 
 };
 function checkHoldConflicts() {
@@ -60,7 +57,7 @@ function checkHoldConflicts() {
         });
 
         if (conflicts) {
-          sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
+          sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn()).setBackground(CONFIG.dateValidationErrorColor);
         } else {
           holdsSchedule[hold].push({ start: startDate, end: endDate });
         }
@@ -95,8 +92,8 @@ function checkAttendeeConflicts() {
           const hasConflict = (startDate <= adjustedEventEnd && endDate >= event.start);
 
           if (hasConflict) {
-            sheet.getRange(event.row, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
-            sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground(CONFIG.conflictColor);
+            sheet.getRange(event.row, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground(CONFIG.dateValidationErrorColor);
+            sheet.getRange(i + CONFIG.startRow, sheet.getRange(CONFIG.attendeesColumn + '1').getColumn()).setBackground(CONFIG.dateValidationErrorColor);
           }
           return hasConflict;
         });
@@ -125,7 +122,7 @@ function checkAttendeeTypos() {
       const attendees = attendeeCellContent.split(/,\s*/);
       const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
       if (!allAttendeesValid) {
-        sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground('red');
+        sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground(CONFG.invalidDataColor);
       }
     }
   });
@@ -153,28 +150,26 @@ function checkDateConflictsAndColorCells() {
       for (var j = 0; j < notAllowedDates.length; j++) {
         var notAllowedDate = new Date(notAllowedDates[j]);
         if (notAllowedDate >= startDate && notAllowedDate <= endDate) {
-          notAllowedDatesRange.getCell(j + 1, 1).setBackground(CONFIG.conflictColor);
-          startDateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor);
-          endDateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor);
+          notAllowedDatesRange.getCell(j + 1, 1).setBackground(CONFIG.dateValidationErrorColor);
+          startDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateValidationErrorColor);
+          endDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateValidationErrorColor);
         }
       }
     }
   }
 }
 function onEdit(e) {
-      colorRedIfLackingInputs();
- // if ([CONFIG.attendeesColumn, CONFIG.tilladteHold, CONFIG.eksamensHoldColumn, CONFIG.teachersColumn, CONFIG.startDateColumn,CONFIG.endDateColumn, CONFIG.notAllowedDates].includes(e.range.getA1Notation().charAt(0))) {
+        colorRedIfLackingInputs();
+        dateValidation(); 
+         checkDateConflictsAndColorCells();
+
     checkAttendeeTypos();
     checkAttendeeConflicts();
-    checkDateConflictsAndColorCells();
     checkHoldConflicts();
     checkHoldTypos();
- // }
 
- // if([CONFIG.startDateColumn, CONFIG.eksamensHoldColumn, CONFIG.endDateColumn].includes(e.range.getA1Notation().charAt(0))) {
-    dateValidation();
 
- // }
+
 
     calculateDuration();
     calculateTotalWeight();
@@ -184,7 +179,25 @@ function onEdit(e) {
 
 
 function checkHoldTypos() {
-  //just like attendee conflicts
+ const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const allowedHoldsRange = sheet.getRange(CONFIG.tilladteHold + '2:' + CONFIG.tilladteHold + sheet.getLastRow());
+  const allowedHoldsValues = allowedHoldsRange.getValues();
+  const allowedHolds = allowedHoldsValues.map(row => row[0].trim());
+  const holdsRange = sheet.getRange(CONFIG.eksamensHoldColumn + CONFIG.startRow + ':' + CONFIG.eksamensHoldColumn + CONFIG.endRow);
+  const holdsValues = holdsRange.getValues();
+
+  holdsRange.setBackground(null); 
+
+  holdsValues.forEach((row, i) => {
+    const holdCellContent = row[0].trim();
+    if (holdCellContent) {
+      const holds = holdCellContent.split(/,\s*/);
+      const allHoldsValid = holds.every(hold => allowedHolds.includes(hold.trim()));
+      if (!allHoldsValid) {
+        sheet.getRange(CONFIG.eksamensHoldColumn + (i + CONFIG.startRow)).setBackground(CONFIG.invalidDataColor);
+      }
+    }
+  });
 }
 
 function dateValidation() {
@@ -203,11 +216,11 @@ function dateValidation() {
     const endDate = new Date(dateValues[i][1]); 
 
     if (startDate > endDate || endDate > latestDate) {
-      dateRange.getCell(i + 1, 1).setBackground(CONFIG.conflictColor); 
-      dateRange.getCell(i + 1, 2).setBackground(CONFIG.conflictColor);
+      dateRange.getCell(i + 1, 1).setBackground(CONFIG.dateValidationErrorColor); 
+      dateRange.getCell(i + 1, 2).setBackground(CONFIG.dateValidationErrorColor);
     } else {
-      dateRange.getCell(i + 1, 1).setBackground('#FFFFFF'); 
-      dateRange.getCell(i + 1, 2).setBackground('#FFFFFF'); 
+      dateRange.getCell(i + 1, 1).setBackground(null); 
+      dateRange.getCell(i + 1, 2).setBackground(null); 
     }
   }
 }
@@ -232,23 +245,20 @@ function colorRedIfLackingInputs() {
     const row = values[i];
     
     if (String(row[attendeesColIndex - 1]).trim()) {
-      const examNameColor = String(row[examNameColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
-      const unitsColor = String(row[unitsColIndex - 1]).trim() ? '#FFFFFF' : '#FF0000'; 
-      const minutesPerUnitColor = String(row[minutesPerUnitColIndex - 1]).trim() ? '#FFFFFF' :
-       '#FF0000'; 
-             const eksamensHoldColor = String(row[eksamensHoldIndex - 1]).trim() ? '#FFFFFF' :
-       '#FF0000'; 
-
+      const examNameColor = String(row[examNameColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
+      const unitsColor = String(row[unitsColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
+      const minutesPerUnitColor = String(row[minutesPerUnitColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
+             const eksamensHoldColor = String(row[eksamensHoldIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
       range.getCell(i + 1, examNameColIndex).setBackground(examNameColor);
       range.getCell(i + 1, unitsColIndex).setBackground(unitsColor);
       range.getCell(i + 1, minutesPerUnitColIndex).setBackground(minutesPerUnitColor);
             range.getCell(i + 1, eksamensHoldIndex).setBackground(eksamensHoldColor);
 
     } else {
-      range.getCell(i + 1, examNameColIndex).setBackground('#FFFFFF');
-      range.getCell(i + 1, unitsColIndex).setBackground('#FFFFFF');
-      range.getCell(i + 1, minutesPerUnitColIndex).setBackground('#FFFFFF');
-            range.getCell(i + 1, eksamensHoldIndex).setBackground('#FFFFFF');
+      range.getCell(i + 1, examNameColIndex).setBackground(null);
+      range.getCell(i + 1, unitsColIndex).setBackground(null);
+      range.getCell(i + 1, minutesPerUnitColIndex).setBackground(null);
+            range.getCell(i + 1, eksamensHoldIndex).setBackground(null);
 
     }
   }
