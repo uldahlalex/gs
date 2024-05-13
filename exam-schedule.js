@@ -24,79 +24,12 @@ const CONFIG = {
   dateConflictColor: 'orange',
   invalidDataColor: 'red'
 };
-
-
-function clearAttendeeConflictColors() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
-  attendeesRange.setBackgrounds(attendeesRange.getBackgrounds().map(row => row.map(cell => cell === CONFIG.dateConflictColor ? null : cell)));
-}
-
-function clearAttendeeTypoColors() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
-  attendeesRange.setBackgrounds(attendeesRange.getBackgrounds().map(row => row.map(cell => cell === CONFIG.invalidDataColor ? null : cell)));
-}
-
-function clearHoldConflictColors() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const holdsRange = sheet.getRange(CONFIG.eksamensHoldColumn + CONFIG.startRow + ':' + CONFIG.eksamensHoldColumn + CONFIG.endRow);
-  holdsRange.setBackgrounds(holdsRange.getBackgrounds().map(row => row.map(cell => cell === CONFIG.dateConflictColor ? null : cell)));
-}
-
-function clearHoldTypoColors() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const holdsRange = sheet.getRange(CONFIG.eksamensHoldColumn + CONFIG.startRow + ':' + CONFIG.eksamensHoldColumn + CONFIG.endRow);
-  holdsRange.setBackgrounds(holdsRange.getBackgrounds().map(row => row.map(cell => cell === CONFIG.invalidDataColor ? null : cell)));
-}
-
-function clearDateConflictColors() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const startDateRange = sheet.getRange(CONFIG.startDateColumn + CONFIG.startRow + ':' + CONFIG.startDateColumn + CONFIG.endRow);
-  const endDateRange = sheet.getRange(CONFIG.endDateColumn + CONFIG.startRow + ':' + CONFIG.endDateColumn + CONFIG.endRow);
-  
-  // Get the backgrounds for the start and end date ranges.
-  const startBackgrounds = startDateRange.getBackgrounds();
-  const endBackgrounds = endDateRange.getBackgrounds();
-  
-  // Clear the colors that match CONFIG.dateConflictColor.
-  const clearedStartBackgrounds = startBackgrounds.map(row => row.map(cellColor => cellColor === CONFIG.dateConflictColor ? null : cellColor));
-  const clearedEndBackgrounds = endBackgrounds.map(row => row.map(cellColor => cellColor === CONFIG.dateConflictColor ? null : cellColor));
-
-  // Set the cleared backgrounds back to the ranges.
-  startDateRange.setBackgrounds(clearedStartBackgrounds);
-  endDateRange.setBackgrounds(clearedEndBackgrounds);
-}
-
-function clearInvalidInputColors() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  
-  const columns = [
-    CONFIG.examNameColumn,
-    CONFIG.attendeesColumn,
-    CONFIG.unitsColumn,
-    CONFIG.minutesPerUnitColumn,
-    CONFIG.eksamensHoldColumn
-  ];
-  
-  columns.forEach(column => {
-    const range = sheet.getRange(column + CONFIG.startRow + ':' + column + CONFIG.endRow);
-    const backgrounds = range.getBackgrounds();
-    const clearedBackgrounds = backgrounds.map(row => row.map(color => color === CONFIG.invalidDataColor ? null : color));
-    range.setBackgrounds(clearedBackgrounds);
-  });
-}
-
-
-
 function checkHoldConflicts() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const holdInterval = parseInt(sheet.getRange(CONFIG.holdInterval).getValue());
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
   const holdsSchedule = {};
-
-  clearHoldConflictColors();
 
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -139,8 +72,6 @@ function checkAttendeeConflicts() {
   const values = range.getValues();
   const attendeesToCheck = {};
 
-  clearAttendeeConflictColors();
-
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
     const startDate = new Date(row[sheet.getRange(CONFIG.startDateColumn + '1').getColumn() - 1]);
@@ -176,231 +107,153 @@ function checkAttendeeConflicts() {
 }
 function checkAttendeeTypos() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // Get the list of valid teachers from the CONFIG.teachersColumn.
   const teachersRange = sheet.getRange(CONFIG.teachersColumn + '2:' + CONFIG.teachersColumn + sheet.getLastRow());
   const teachersValues = teachersRange.getValues();
   const teachers = teachersValues.map(row => row[0].trim());
-  // Define the range for attendee data based on CONFIG.
   const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
   const attendeesValues = attendeesRange.getValues();
 
-  // Clear any previous typo-related colors set by this function.
-  clearAttendeeTypoColors();
+  attendeesRange.setBackground(null);
 
-  // Perform the validation checks...
   attendeesValues.forEach((row, i) => {
-    const attendeeCell = row[0].trim();
-    if (attendeeCell) {
-      const attendees = attendeeCell.split(/,\s*/);
-      const invalidAttendees = attendees.filter(attendee => !teachers.includes(attendee));
-
-      if (invalidAttendees.length > 0) {
-        // If typos are found, set the invalid data color.
+    const attendeeCellContent = row[0].trim();
+    if (attendeeCellContent) { 
+      const attendees = attendeeCellContent.split(/,\s*/);
+      const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
+      if (!allAttendeesValid) {
         sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground(CONFIG.invalidDataColor);
       }
     }
   });
 }
 
+function checkDateConflictsAndColorCells() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
+  var notAllowedDates = notAllowedDatesRange.getValues().flat();
+  var startDateRange = sheet.getRange(CONFIG.startDateColumn + CONFIG.startRow + ":" + CONFIG.startDateColumn);
+  var startDateValues = startDateRange.getValues().flat();
+  var endDateRange = sheet.getRange(CONFIG.endDateColumn + CONFIG.startRow + ":" + CONFIG.endDateColumn);
+  var endDateValues = endDateRange.getValues().flat();
+
+  notAllowedDatesRange.setBackground(null);
+  startDateRange.setBackground(null);
+  endDateRange.setBackground(null);
+
+  for (var i = 0; i < startDateValues.length; i++) {
+    var startDate = startDateValues[i];
+    var endDate = endDateValues[i];
+    if (startDate && endDate) { 
+      startDate = new Date(startDate);
+      endDate = new Date(endDate);
+      for (var j = 0; j < notAllowedDates.length; j++) {
+        var notAllowedDate = new Date(notAllowedDates[j]);
+        if (notAllowedDate >= startDate && notAllowedDate <= endDate) {
+          notAllowedDatesRange.getCell(j + 1, 1).setBackground(CONFIG.dateConflictColor);
+          startDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor);
+          endDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor);
+        }
+      }
+    }
+  }
+}
+function onEdit(e) {
+    colorRedIfLackingInputs();
+    checkAttendeeTypos();
+    checkAttendeeConflicts();
+    checkDateConflictsAndColorCells();
+    checkHoldConflicts();
+    checkHoldTypos();
+    dateValidation();
+    calculateDuration();
+    calculateTotalWeight();
+}
+
 function checkHoldTypos() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // Get the list of allowed holds from the CONFIG.tilladteHold column.
   const allowedHoldsRange = sheet.getRange(CONFIG.tilladteHold + '2:' + CONFIG.tilladteHold + sheet.getLastRow());
   const allowedHoldsValues = allowedHoldsRange.getValues();
   const allowedHolds = allowedHoldsValues.map(row => row[0].trim());
-  // Define the range for hold data based on CONFIG.
   const holdsRange = sheet.getRange(CONFIG.eksamensHoldColumn + CONFIG.startRow + ':' + CONFIG.eksamensHoldColumn + CONFIG.endRow);
   const holdsValues = holdsRange.getValues();
 
-  // Clear any previous typo-related colors set by this function.
-  clearHoldTypoColors();
+  holdsRange.setBackground(null); 
 
-  // Perform the validation checks...
   holdsValues.forEach((row, i) => {
-    const holdCell = row[0].trim();
-    if (holdCell) {
-      const holds = holdCell.split(/,\s*/);
-      const invalidHolds = holds.filter(hold => !allowedHolds.includes(hold));
-
-      if (invalidHolds.length > 0) {
-        // If typos are found, set the invalid data color.
+    const holdCellContent = row[0].trim();
+    if (holdCellContent) {
+      const holds = holdCellContent.split(/,\s*/);
+      const allHoldsValid = holds.every(hold => allowedHolds.includes(hold.trim()));
+      if (!allHoldsValid) {
         sheet.getRange(CONFIG.eksamensHoldColumn + (i + CONFIG.startRow)).setBackground(CONFIG.invalidDataColor);
       }
     }
   });
 }
 
-function checkIfStartIsEarlierThanEnd() {
+
+function dateValidation() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // Define the ranges for start and end dates based on CONFIG.
-  const startDateRange = sheet.getRange(CONFIG.startDateColumn + CONFIG.startRow + ':' + CONFIG.startDateColumn + CONFIG.endRow);
-  const endDateRange = sheet.getRange(CONFIG.endDateColumn + CONFIG.startRow + ':' + CONFIG.endDateColumn + CONFIG.endRow);
   
-  // Clear any previous date conflict-related colors set by this function.
-  clearDateConflictColors();
+  const startDateColIndex = sheet.getRange(CONFIG.startDateColumn + '1').getColumn();
 
-  const startDateValues = startDateRange.getValues().flat();
-  const endDateValues = endDateRange.getValues().flat();
-
-  // Perform the checks...
-  startDateValues.forEach((startDateValue, i) => {
-    const startDate = startDateValue ? new Date(startDateValue) : null;
-    const endDate = endDateValues[i] ? new Date(endDateValues[i]) : null;
-
-    if (startDate && endDate && startDate > endDate) {
-      // If the start date is later than the end date, set the conflict color.
-      startDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor);
-      endDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor);
-    }
-  });
-}
-
-function checkForNotAllowedDates() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  // Define the range for not allowed dates based on CONFIG.
-  const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + '2:' + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
-  const notAllowedDatesValues = notAllowedDatesRange.getValues();
+  const latestDate = new Date(sheet.getRange(CONFIG.latestDateCell).getValue());
   
-  // Clear any previous date conflict-related colors set by this function.
-  clearDateConflictColors();
+  const numRows = CONFIG.endRow - CONFIG.startRow + 1;
+  const dateRange = sheet.getRange(CONFIG.startRow, startDateColIndex, numRows, 2); 
+  const dateValues = dateRange.getValues();
 
-  // Flatten the notAllowedDatesValues array and convert each to a date object.
-  const notAllowedDates = notAllowedDatesValues.flat().map(date => new Date(date).setHours(0, 0, 0, 0));
-  const startDateRange = sheet.getRange(CONFIG.startDateColumn + CONFIG.startRow + ':' + CONFIG.startDateColumn + CONFIG.endRow);
-  const endDateRange = sheet.getRange(CONFIG.endDateColumn + CONFIG.startRow + ':' + CONFIG.endDateColumn + CONFIG.endRow);
-  const startDateValues = startDateRange.getValues().flat();
-  const endDateValues = endDateRange.getValues().flat();
+  for (let i = 0; i < numRows; i++) {
+    const startDate = new Date(dateValues[i][0]);
+    const endDate = new Date(dateValues[i][1]); 
 
-  // Perform the checks...
-  for (let i = 0; i < startDateValues.length; i++) {
-    const startDate = startDateValues[i] ? new Date(startDateValues[i]) : null;
-    const endDate = endDateValues[i] ? new Date(endDateValues[i]) : null;
-
-    if (startDate && endDate) {
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-
-      // Check for any not allowed dates within the start and end dates.
-      const hasConflict = notAllowedDates.some(notAllowedDate => notAllowedDate >= startDate && notAllowedDate <= endDate);
-      if (hasConflict) {
-        // If a date conflict is found, set the conflict color for the start and end date cells.
-        startDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor);
-        endDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor);
-      }
-    }
+    if (startDate > endDate || endDate > latestDate) {
+      dateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor); 
+      dateRange.getCell(i + 1, 2).setBackground(CONFIG.dateConflictColor);
+    } else {dateRange.getCell(i + 1, 1).setBackground(null);   dateRange.getCell(i + 1, 2).setBackground(null);   }
   }
 }
-
-
-function onEdit(e) {
-    clearInvalidInputColors();
-    clearDateConflictColors();
-    clearAttendeeConflictColors();
-    clearHoldConflictColors();
-
-    // Step 2: Check for any empty or malformed inputs
-    checkEmptyCells();
-    checkAttendeeTypos();
-    checkHoldTypos();
-
-    // Step 3: Validate data consistency
-    checkIfStartIsEarlierThanEnd();
-    isDateTooLate();
-    checkForNotAllowedDates();
-
-    // Step 4: Check for conflicts or overlapping data
-    checkAttendeeConflicts();
-    checkHoldConflicts();
-
-    // Step 5: Calculate any derived or dependent values
-    calculateDuration();
-    calculateTotalWeight();
-
-    // Step 6: Apply final formatting (if any)
-    // This might include setting specific colors or styles based on the calculated values
-}
-
-
-
-function isDateTooLate() {
+function colorRedIfLackingInputs() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
-  // Fetch column index for start date and end date.
-  const startDateColIndex = sheet.getRange(CONFIG.startDateColumn + '1').getColumn();
-  const endDateColIndex = sheet.getRange(CONFIG.endDateColumn + '1').getColumn();
-
-  // Get the latest permissible date from a specific cell.
-  const latestDate = new Date(sheet.getRange(CONFIG.latestDateCell).getValue());
-
-  // Define the range for end dates based on configuration and fetch values.
-  const numRows = CONFIG.endRow - CONFIG.startRow + 1;
-  const endDateRange = sheet.getRange(CONFIG.startRow, endDateColIndex, numRows, 1);
-  const endDateValues = endDateRange.getValues();
-
-  // Clear any previous date conflict-related colors set for late dates.
-  clearDateLateColors();
-
-  // Check each end date to see if it exceeds the latest date.
-  endDateValues.forEach((endDateValue, i) => {
-    const endDate = new Date(endDateValue[0]);
-
-    if (endDate > latestDate) {
-      // If the end date is later than the latest date, set the conflict color.
-      endDateRange.getCell(i + 1, 1).setBackground(CONFIG.dateConflictColor);
-    } else {
-      // Clear the color if previously set.
-      endDateRange.getCell(i + 1, 1).setBackground(null);
-    }
-  });
-}
-
-
-
-function checkEmptyCells() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  
-  // Retrieve column indices for various columns
   const examNameColIndex = sheet.getRange(CONFIG.examNameColumn + '1').getColumn();
   const attendeesColIndex = sheet.getRange(CONFIG.attendeesColumn + '1').getColumn();
   const unitsColIndex = sheet.getRange(CONFIG.unitsColumn + '1').getColumn();
   const minutesPerUnitColIndex = sheet.getRange(CONFIG.minutesPerUnitColumn + '1').getColumn();
   const eksamensHoldIndex = sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn();
+  
 
   const startRow = CONFIG.startRow;
   const endRow = CONFIG.endRow;
   const numRows = endRow - startRow + 1;
   
-  // Clear previous invalid data colors
-  clearInvalidInputColors();
+  const range = sheet.getRange(startRow, 1, numRows, sheet.getMaxColumns());
+  const values = range.getValues();
 
-  // Loop through each row to check for missing inputs
   for (let i = 0; i < numRows; i++) {
-    const row = sheet.getRange(startRow + i, 1, 1, sheet.getMaxColumns()).getValues()[0];
+    const row = values[i];
     
-    if (toStringAndTrim(row[attendeesColIndex - 1])) { // Check if there's data in the attendees column
-      const examNameColor = toStringAndTrim(row[examNameColIndex - 1]) ? null : CONFIG.invalidDataColor; 
-      const unitsColor = toStringAndTrim(row[unitsColIndex - 1]) ? null : CONFIG.invalidDataColor; 
-      const minutesPerUnitColor = toStringAndTrim(row[minutesPerUnitColIndex - 1]) ? null : CONFIG.invalidDataColor; 
-      const eksamensHoldColor = toStringAndTrim(row[eksamensHoldIndex - 1]) ? null : CONFIG.invalidDataColor; 
+    if (String(row[attendeesColIndex - 1]).trim()) {
+      const examNameColor = String(row[examNameColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
+      const unitsColor = String(row[unitsColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
+      const minutesPerUnitColor = String(row[minutesPerUnitColIndex - 1]).trim() ? null :
+       CONFIG.invalidDataColor; 
+             const eksamensHoldColor = String(row[eksamensHoldIndex - 1]).trim() ? null :
+       CONFIG.invalidDataColor; 
 
-      sheet.getRange(startRow + i, examNameColIndex).setBackground(examNameColor);
-      sheet.getRange(startRow + i, unitsColIndex).setBackground(unitsColor);
-      sheet.getRange(startRow + i, minutesPerUnitColIndex).setBackground(minutesPerUnitColor);
-      sheet.getRange(startRow + i, eksamensHoldIndex).setBackground(eksamensHoldColor);
-    } else { // Clear colors if no attendee data
-      sheet.getRange(startRow + i, examNameColIndex).setBackground(null);
-      sheet.getRange(startRow + i, unitsColIndex).setBackground(null);
-      sheet.getRange(startRow + i, minutesPerUnitColIndex).setBackground(null);
-      sheet.getRange(startRow + i, eksamensHoldIndex).setBackground(null);
+      range.getCell(i + 1, examNameColIndex).setBackground(examNameColor);
+      range.getCell(i + 1, unitsColIndex).setBackground(unitsColor);
+      range.getCell(i + 1, minutesPerUnitColIndex).setBackground(minutesPerUnitColor);
+            range.getCell(i + 1, eksamensHoldIndex).setBackground(eksamensHoldColor);
+
+    } else {
+      range.getCell(i + 1, examNameColIndex).setBackground(null);
+      range.getCell(i + 1, unitsColIndex).setBackground(null);
+      range.getCell(i + 1, minutesPerUnitColIndex).setBackground(null);
+      range.getCell(i + 1, eksamensHoldIndex).setBackground(null);
     }
   }
 }
-
-function toStringAndTrim(value) {
-  // Convert any value to string and trim it
-  return value === null || value === undefined ? '' : String(value).trim();
-}
-
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('🪄EASV Koordinator Powertools🪄')
@@ -489,7 +342,7 @@ function generateDates() {
       }
     }
   }  
-  isDateTooLate();
+  dateValidation();
   checkAttendeeConflicts();
   checkHoldConflicts();
 
