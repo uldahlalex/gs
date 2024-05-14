@@ -1,12 +1,4 @@
 
-
-## Contents:
-
-- exam-schedule.js: This is actually the .gs script attached as an Apps Script to Google Sheets (saved in .js to get syntax highlighting)
-- testSpreadsheet: Textual data for the testing spreadsheet (doens't include formatting)
-
-
-
 ## Roadmap:
 - Correction of timetable generation for individual exams (needs slightly more data to be useful and the header row should be skipped)
     - Should respect lunch break
