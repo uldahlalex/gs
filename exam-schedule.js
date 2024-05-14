@@ -424,55 +424,61 @@ function calculateDuration() {
   }
 }
 
-
 function createStudentSchedule() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const mainSheet = spreadsheet.getActiveSheet();
   const dataRange = mainSheet.getDataRange();
   const dataValues = dataRange.getValues();
   
-  const examNameColIndex = getColumnIndex(CONFIG.examNameColumn);
-  const minutesPerUnitColIndex = getColumnIndex(CONFIG.minutesPerUnitColumn);
-  const csvDataColIndex = getColumnIndex(CONFIG.csvDataColumn);
+  const examNameColIndex = CONFIG.examNameColumn.charCodeAt(0) - 'A'.charCodeAt(0);
+  const minutesPerUnitColIndex = CONFIG.minutesPerUnitColumn.charCodeAt(0) - 'A'.charCodeAt(0);
+  const csvDataColIndex = CONFIG.csvDataColumn.charCodeAt(0) - 'A'.charCodeAt(0);
 
   for (let i = CONFIG.startRow - 1; i < CONFIG.endRow; i++) {
-    const examName = dataValues[i][examNameColIndex - 1];
-    const csvData = dataValues[i][csvDataColIndex - 1];
-    const minutesPerUnit = dataValues[i][minutesPerUnitColIndex - 1];
+    const examName = dataValues[i][examNameColIndex];
+    const csvData = dataValues[i][csvDataColIndex];
+    const minutesPerUnit = parseInt(dataValues[i][minutesPerUnitColIndex]);
 
     if (csvData && examName) {
       const groups = Utilities.parseCsv(csvData);
+      
       let scheduleSheet = spreadsheet.getSheetByName(examName);
       if (!scheduleSheet) {
         scheduleSheet = spreadsheet.insertSheet(examName);
       } else {
-        scheduleSheet.clear(); 
+        scheduleSheet.clear();
       }
 
-      scheduleSheet.appendRow(['Student (full name)', 'Group name', 'Starting time']);
+      scheduleSheet.appendRow(['Student Identifier', 'Group name', 'Starting time']);
 
       let startTime = new Date();
-      startTime.setHours(9, 0, 0, 0); 
+      startTime.setHours(9, 0, 0, 0);
 
-      groups.forEach(group => {
-        const groupName = group[1]; 
-        for (let memberIndex = 8; memberIndex < group.length; memberIndex += 4) {
-          if (group[memberIndex]) { 
-            const fullName = group[memberIndex + 2] + ' ' + group[memberIndex + 3]; 
-            scheduleSheet.appendRow([
-              fullName,
-              groupName,
-              Utilities.formatDate(startTime, spreadsheet.getSpreadsheetTimeZone(), 'HH:mm')
-            ]);
+      for (let j = 1; j < groups.length; j++) {
+        const group = groups[j];
+        if (group.length > 8 && group[1]) { 
+          const groupName = group[1];
+          for (let memberIndex = 8; memberIndex + 3 < group.length; memberIndex += 4) {
+            const username = group[memberIndex];
+            const idNumber = group[memberIndex + 1];
+            const firstName = group[memberIndex + 2];
+            const lastName = group[memberIndex + 3];
+            const email = group[memberIndex + 4]; 
 
-            startTime = new Date(startTime.getTime() + minutesPerUnit * 60000);
+            const identifier = firstName && lastName ? `${firstName} ${lastName}` : (username || email || 'Unknown Identifier');
+
+            if (identifier && (firstName || lastName || username || email)) {
+              scheduleSheet.appendRow([
+                identifier,
+                groupName,
+                Utilities.formatDate(startTime, spreadsheet.getSpreadsheetTimeZone(), 'HH:mm')
+              ]);
+
+              startTime = new Date(startTime.getTime() + minutesPerUnit * 60000);
+            }
           }
         }
-      });
+      }
     }
   }
-}
-
-function getColumnIndex(columnLetter) {
-  return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getRange(columnLetter + '1').getColumn();
 }
