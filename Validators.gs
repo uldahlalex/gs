@@ -193,7 +193,7 @@ function validateEmptyCells(sheet) {
   for (let i = 0; i < numRows; i++) {
     const row = values[i];
     // Only validate rows with a non-empty exam name
-    if (row[examNameColIndex - 1].trim()) {
+    if (row[attendeesColIndex - 1].trim()) {
       checkAndColorIfEmpty(row, examNameColIndex, i, sheet, CONFIG.invalidDataColor);
       checkAndColorIfEmpty(row, attendeesColIndex, i, sheet, CONFIG.invalidDataColor);
       checkAndColorIfEmpty(row, unitsColIndex, i, sheet, CONFIG.invalidDataColor);
