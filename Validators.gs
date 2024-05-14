@@ -85,7 +85,6 @@ function validateAttendeeTypos(sheet) {
   const attendeesRange = sheet.getRange(CONFIG.attendeesColumn + CONFIG.startRow + ':' + CONFIG.attendeesColumn + CONFIG.endRow);
   const attendeesValues = attendeesRange.getValues();
 
-  attendeesRange.setBackground(null);
 
   attendeesValues.forEach((row, i) => {
     const attendeeCellContent = row[0].trim();
@@ -93,7 +92,7 @@ function validateAttendeeTypos(sheet) {
       const attendees = attendeeCellContent.split(/,\s*/);
       const allAttendeesValid = attendees.every(attendee => teachers.includes(attendee.trim()));
       if (!allAttendeesValid) {
-        sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground(CONFG.invalidDataColor);
+        sheet.getRange(CONFIG.attendeesColumn + (i + CONFIG.startRow)).setBackground(CONFIG.invalidDataColor);
       }
     }
   });
@@ -104,9 +103,6 @@ function validateDateOrder(sheet) {
   const endDateRange = sheet.getRange(CONFIG.endDateColumn + CONFIG.startRow + ":" + CONFIG.endDateColumn + CONFIG.endRow);
   const startDateValues = startDateRange.getValues().flat();
   const endDateValues = endDateRange.getValues().flat();
-
-  startDateRange.setBackground(null);
-  endDateRange.setBackground(null);
 
   startDateValues.forEach((startDate, i) => {
     const endDate = endDateValues[i];
@@ -126,9 +122,6 @@ function validateNotAllowedDates(sheet) {
   const startDateValues = startDateRange.getValues().flat();
   const endDateValues = endDateRange.getValues().flat();
 
-  startDateRange.setBackground(null);
-  endDateRange.setBackground(null);
-  notAllowedDatesRange.setBackground(null);
 
   startDateValues.forEach((startDate, i) => {
     const endDate = endDateValues[i];
@@ -148,8 +141,6 @@ function validateHoldTypo(sheet) {
   const allowedHolds = allowedHoldsValues.map(row => row[0].trim());
   const holdsRange = sheet.getRange(CONFIG.eksamensHoldColumn + CONFIG.startRow + ':' + CONFIG.eksamensHoldColumn + CONFIG.endRow);
   const holdsValues = holdsRange.getValues();
-
-  holdsRange.setBackground(null); 
 
   holdsValues.forEach((row, i) => {
     const holdCellContent = row[0].trim();
@@ -180,20 +171,17 @@ function validateLastDate(sheet) {
     if (startDate > endDate || endDate > latestDate) {
       dateRange.getCell(i + 1, 1).setBackground(CONFIG.dateValidationErrorColor); 
       dateRange.getCell(i + 1, 2).setBackground(CONFIG.dateValidationErrorColor);
-    } else {
-      dateRange.getCell(i + 1, 1).setBackground(null); 
-      dateRange.getCell(i + 1, 2).setBackground(null); 
-    }
+    } 
   }
 }
+
+
 function validateEmptyCells(sheet) {
-  
   const examNameColIndex = sheet.getRange(CONFIG.examNameColumn + '1').getColumn();
   const attendeesColIndex = sheet.getRange(CONFIG.attendeesColumn + '1').getColumn();
   const unitsColIndex = sheet.getRange(CONFIG.unitsColumn + '1').getColumn();
   const minutesPerUnitColIndex = sheet.getRange(CONFIG.minutesPerUnitColumn + '1').getColumn();
   const eksamensHoldIndex = sheet.getRange(CONFIG.eksamensHoldColumn + '1').getColumn();
-  
 
   const startRow = CONFIG.startRow;
   const endRow = CONFIG.endRow;
@@ -204,27 +192,20 @@ function validateEmptyCells(sheet) {
 
   for (let i = 0; i < numRows; i++) {
     const row = values[i];
-    
-    if (String(row[attendeesColIndex - 1]).trim()) {
-      const examNameColor = String(row[examNameColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
-      const unitsColor = String(row[unitsColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
-      const minutesPerUnitColor = String(row[minutesPerUnitColIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
-             const eksamensHoldColor = String(row[eksamensHoldIndex - 1]).trim() ? null : CONFIG.invalidDataColor; 
-      range.getCell(i + 1, examNameColIndex).setBackground(examNameColor);
-      range.getCell(i + 1, unitsColIndex).setBackground(unitsColor);
-      range.getCell(i + 1, minutesPerUnitColIndex).setBackground(minutesPerUnitColor);
-            range.getCell(i + 1, eksamensHoldIndex).setBackground(eksamensHoldColor);
-
-    } else {
-      range.getCell(i + 1, examNameColIndex).setBackground(null);
-      range.getCell(i + 1, unitsColIndex).setBackground(null);
-      range.getCell(i + 1, minutesPerUnitColIndex).setBackground(null);
-            range.getCell(i + 1, eksamensHoldIndex).setBackground(null);
-
+    // Only validate rows with a non-empty exam name
+    if (row[examNameColIndex - 1].trim()) {
+      checkAndColorIfEmpty(row, examNameColIndex, i, sheet, CONFIG.invalidDataColor);
+      checkAndColorIfEmpty(row, attendeesColIndex, i, sheet, CONFIG.invalidDataColor);
+      checkAndColorIfEmpty(row, unitsColIndex, i, sheet, CONFIG.invalidDataColor);
+      checkAndColorIfEmpty(row, minutesPerUnitColIndex, i, sheet, CONFIG.invalidDataColor);
+      checkAndColorIfEmpty(row, eksamensHoldIndex, i, sheet, CONFIG.invalidDataColor);
     }
   }
 }
 
-
-
+function checkAndColorIfEmpty(row, columnIndex, rowIndex, sheet, color) {
+  if (!String(row[columnIndex - 1]).trim()) {
+    sheet.getRange(CONFIG.startRow + rowIndex, columnIndex).setBackground(color);
+  }
+}
 

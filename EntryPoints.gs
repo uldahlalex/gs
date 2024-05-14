@@ -9,20 +9,20 @@ function onOpen() {
 
 
 function onEdit(e) {
-
 const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-
+  var totalRows = sheet.getMaxRows();
+  var totalColumns = sheet.getMaxColumns();
+  var range = sheet.getRange(1, 1, totalRows, totalColumns);
+range.setBackground(null);
 
 validateEmptyCells(sheet);
+validateNotAllowedDates(sheet);
+validateAttendeeTypos(sheet);
+validateAttendeeConflicts(sheet);
+validateHoldTypo(sheet);
+validateHoldConflicts(sheet);
 validateDateOrder(sheet);
 validateLastDate(sheet);
-validateNotAllowedDates(sheet);
-
-validateAttendeeTypos(sheet);
-validateHoldTypo(sheet);
-
-validateHoldConflicts(sheet);
-validateHoldConflicts(sheet);
 
 calculateDuration(sheet);
 calculateTotalWeight(sheet);
