@@ -1,6 +1,6 @@
 
 function validateHoldConflicts(sheet) {
-  const holdInterval = parseInt(sheet.getRange(CONFIG.holdInterval).getValue());
+  const holdInterval = parseInt(sheet.getRange(CONFIG.holdBufferValidationDaysCell).getValue());
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
   const holdsSchedule = {};
@@ -40,7 +40,7 @@ function validateHoldConflicts(sheet) {
 }
 
 function validateAttendeeConflicts(sheet) {
-  const attendeeInterval = parseInt(sheet.getRange(CONFIG.attendeeInterval).getValue());
+  const attendeeInterval = parseInt(sheet.getRange(CONFIG.attendeeBufferValidationDaysCell).getValue());
   const range = sheet.getRange(CONFIG.startRow, 1, sheet.getLastRow() - CONFIG.startRow + 1, sheet.getLastColumn());
   const values = range.getValues();
   const attendeesToCheck = {};
@@ -114,7 +114,7 @@ function validateDateOrder(sheet) {
 }
 
 function validateNotAllowedDates(sheet) {
-  const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
+  const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDatesColumn + "2:" + CONFIG.notAllowedDatesColumn + (CONFIG.startRow + 15));
   const notAllowedDates = notAllowedDatesRange.getValues().flat().map(date => new Date(date).setHours(0, 0, 0, 0));
 
   const startDateRange = sheet.getRange(CONFIG.startDateColumn + CONFIG.startRow + ":" + CONFIG.startDateColumn + CONFIG.endRow);
@@ -136,7 +136,7 @@ function validateNotAllowedDates(sheet) {
 
 
 function validateHoldTypo(sheet) {
-  const allowedHoldsRange = sheet.getRange(CONFIG.tilladteHold + '2:' + CONFIG.tilladteHold + sheet.getLastRow());
+  const allowedHoldsRange = sheet.getRange(CONFIG.tilladteHoldColumn + '2:' + CONFIG.tilladteHoldColumn + sheet.getLastRow());
   const allowedHoldsValues = allowedHoldsRange.getValues();
   const allowedHolds = allowedHoldsValues.map(row => row[0].trim());
   const holdsRange = sheet.getRange(CONFIG.eksamensHoldColumn + CONFIG.startRow + ':' + CONFIG.eksamensHoldColumn + CONFIG.endRow);
@@ -192,7 +192,6 @@ function validateEmptyCells(sheet) {
 
   for (let i = 0; i < numRows; i++) {
     const row = values[i];
-    // Only validate rows with a non-empty exam name
     if (row[attendeesColIndex - 1].trim()) {
       checkAndColorIfEmpty(row, examNameColIndex, i, sheet, CONFIG.invalidDataColor);
       checkAndColorIfEmpty(row, attendeesColIndex, i, sheet, CONFIG.invalidDataColor);

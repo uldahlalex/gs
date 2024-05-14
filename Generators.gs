@@ -63,10 +63,10 @@ function generateDates() {
   const values = range.getValues();
   const earliestDate = new Date(sheet.getRange(CONFIG.earliestDateCell).getValue());
   earliestDate.setHours(0, 0, 0, 0); 
-  const maksTid = parseFloat(sheet.getRange(CONFIG.maksTid).getValue());
+  const maksTid = parseFloat(sheet.getRange(CONFIG.maksTidCell).getValue());
   const attendeesSchedule = {};
-  const interval = sheet.getRange(CONFIG.interval).getValue();
-  const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDates + "2:" + CONFIG.notAllowedDates + (CONFIG.startRow + 15));
+  const interval = sheet.getRange(CONFIG.teacherBufferDaysCell).getValue();
+  const notAllowedDatesRange = sheet.getRange(CONFIG.notAllowedDatesColumn + "2:" + CONFIG.notAllowedDatesColumn + (CONFIG.startRow + 15));
   const notAllowedDates = notAllowedDatesRange.getValues().flat().map(date => new Date(date).setHours(0, 0, 0, 0));
 
     for (let i = 0; i < values.length; i++) {

@@ -1,8 +1,8 @@
 const CONFIG = {
   teachersColumn: 'A',
   totalWeightPerEmployeeColumn: 'B',
-  tilladteHold: 'C',
-  notAllowedDates: 'D',
+  tilladteHoldColumn: 'C',
+  notAllowedDatesColumn: 'D',
   examNameColumn: 'E',
   eksamensHoldColumn: 'F',
   attendeesColumn: 'G',
@@ -13,15 +13,17 @@ const CONFIG = {
   endDateColumn: 'L',
   csvDataColumn: 'M',
 
+  maksTidCell: 'O2',
+  teacherBufferDaysCell: 'O3',
+  holdBufferDaysCell: '04',
+  earliestDateCell: 'O5',
+  latestDateCell: 'O8',
+  holdBufferValidationDaysCell: 'O9',
+  attendeeBufferValidationDaysCell: 'O10',
+
   startRow: 2,
   endRow: 100,
-  invalidDataColor: "red",
-  dateValidationErrorColor: 'orange', 
-  maksTid: 'O2',
-  interval: 'O3',
-  earliestDateCell: 'O4',
-  latestDateCell: 'O8',
-  holdInterval: 'O9',
-  attendeeInterval: 'O10'
 
+  invalidDataColor: "red",
+  dateValidationErrorColor: 'orange'
 };
