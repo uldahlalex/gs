@@ -1,6 +1,6 @@
 
 ## Roadmap:
-- Correction of timetable generation for individual exams (needs slightly more data to be useful and the header row should be skipped)
+- Correction of timetable generation for individual exams
     - Should respect lunch break
     - Should span several days if required (start-end dates implementation instead of "just" starting at 9 o'clock at start day and running endlessly)
     - Should create new sheet every time for every exam the generator is invoked (no auto overwrite / delete)
